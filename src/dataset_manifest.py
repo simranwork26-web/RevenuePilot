@@ -1,8 +1,8 @@
-
 from pathlib import Path
 
 
 RAW_DATA_DIR = Path("data/raw/olist")
+
 
 DATASET_MANIFEST = {
     "olist_customers_dataset.csv": {
@@ -11,6 +11,8 @@ DATASET_MANIFEST = {
             "customer_id",
             "customer_unique_id",
         ],
+        "unique_columns": ["customer_id"],
+        "foreign_keys": [],
     },
     "olist_geolocation_dataset.csv": {
         "expected_rows": 1_000_163,
@@ -19,6 +21,8 @@ DATASET_MANIFEST = {
             "geolocation_lat",
             "geolocation_lng",
         ],
+        "unique_columns": [],
+        "foreign_keys": [],
     },
     "olist_order_items_dataset.csv": {
         "expected_rows": 112_650,
@@ -30,6 +34,24 @@ DATASET_MANIFEST = {
             "price",
             "freight_value",
         ],
+        "unique_columns": [],
+        "foreign_keys": [
+            {
+                "column": "order_id",
+                "parent_file": "olist_orders_dataset.csv",
+                "parent_column": "order_id",
+            },
+            {
+                "column": "product_id",
+                "parent_file": "olist_products_dataset.csv",
+                "parent_column": "product_id",
+            },
+            {
+                "column": "seller_id",
+                "parent_file": "olist_sellers_dataset.csv",
+                "parent_column": "seller_id",
+            },
+        ],
     },
     "olist_order_payments_dataset.csv": {
         "expected_rows": 103_886,
@@ -39,6 +61,8 @@ DATASET_MANIFEST = {
             "payment_type",
             "payment_value",
         ],
+        "unique_columns": [],
+        "foreign_keys": [],
     },
     "olist_order_reviews_dataset.csv": {
         "expected_rows": 99_224,
@@ -47,6 +71,8 @@ DATASET_MANIFEST = {
             "order_id",
             "review_score",
         ],
+        "unique_columns": [],
+        "foreign_keys": [],
     },
     "olist_orders_dataset.csv": {
         "expected_rows": 99_441,
@@ -56,6 +82,8 @@ DATASET_MANIFEST = {
             "order_status",
             "order_purchase_timestamp",
         ],
+        "unique_columns": ["order_id"],
+        "foreign_keys": [],
     },
     "olist_products_dataset.csv": {
         "expected_rows": 32_951,
@@ -63,12 +91,16 @@ DATASET_MANIFEST = {
             "product_id",
             "product_category_name",
         ],
+        "unique_columns": ["product_id"],
+        "foreign_keys": [],
     },
     "olist_sellers_dataset.csv": {
         "expected_rows": 3_095,
         "required_columns": [
             "seller_id",
         ],
+        "unique_columns": ["seller_id"],
+        "foreign_keys": [],
     },
     "product_category_name_translation.csv": {
         "expected_rows": 71,
@@ -76,5 +108,7 @@ DATASET_MANIFEST = {
             "product_category_name",
             "product_category_name_english",
         ],
+        "unique_columns": ["product_category_name"],
+        "foreign_keys": [],
     },
 }

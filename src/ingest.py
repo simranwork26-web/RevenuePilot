@@ -45,3 +45,52 @@ def count_csv_rows(
         1
         for _ in iter_csv_rows(path, required_columns)
     )
+
+
+def validate_unique_column(
+    path: str | Path,
+    column: str,
+) -> None:
+    """Raise ValueError if a CSV column contains duplicate values."""
+    seen = set()
+
+    for row_number, row in enumerate(
+        iter_csv_rows(path, [column]),
+        start=2,
+    ):
+        value = row[column]
+
+        if value in seen:
+            raise ValueError(
+                f"Duplicate value {value!r} in column "
+                f"{column!r} at CSV row {row_number}: {path}"
+            )
+
+        seen.add(value)
+
+
+def validate_foreign_key(
+    child_path: str | Path,
+    child_column: str,
+    parent_path: str | Path,
+    parent_column: str,
+) -> None:
+    """Raise ValueError if child values are missing from the parent column."""
+    parent_values = {
+        row[parent_column]
+        for row in iter_csv_rows(parent_path, [parent_column])
+    }
+
+    for row_number, row in enumerate(
+        iter_csv_rows(child_path, [child_column]),
+        start=2,
+    ):
+        value = row[child_column]
+
+        if value not in parent_values:
+            raise ValueError(
+                f"Foreign-key value {value!r} in column "
+                f"{child_column!r} at CSV row {row_number} "
+                f"does not exist in {parent_path} column "
+                f"{parent_column!r}"
+            )

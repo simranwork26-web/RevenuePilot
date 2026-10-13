@@ -1,11 +1,16 @@
 from src.dataset_manifest import DATASET_MANIFEST, RAW_DATA_DIR
-from src.ingest import count_csv_rows
+from src.ingest import (
+    count_csv_rows,
+    validate_foreign_key,
+    validate_unique_column,
+)
 
 
 def validate_dataset() -> bool:
-    """Validate source files against the dataset manifest."""
+    """Validate files, schemas, row counts, unique columns, and relationships."""
     errors = []
 
+    # First validate file existence, required columns, row counts, and uniqueness.
     for filename, specification in DATASET_MANIFEST.items():
         path = RAW_DATA_DIR / filename
 
@@ -29,8 +34,51 @@ def validate_dataset() -> bool:
                 f"{filename}: expected {expected_rows:,} rows, "
                 f"found {actual_rows:,}"
             )
-        else:
+            continue
+
+        dataset_failed = False
+
+        for column in specification.get("unique_columns", []):
+            try:
+                validate_unique_column(path, column)
+            except (OSError, ValueError) as error:
+                errors.append(f"{filename}: {error}")
+                dataset_failed = True
+
+        if not dataset_failed:
             print(f"PASS: {filename} ({actual_rows:,} rows)")
+
+    # Then validate configured foreign-key relationships.
+    for filename, specification in DATASET_MANIFEST.items():
+        child_path = RAW_DATA_DIR / filename
+
+        if not child_path.is_file():
+            continue
+
+        for relationship in specification.get("foreign_keys", []):
+            parent_path = RAW_DATA_DIR / relationship["parent_file"]
+
+            if not parent_path.is_file():
+                errors.append(
+                    f"{filename}: missing parent file "
+                    f"{relationship['parent_file']}"
+                )
+                continue
+
+            try:
+                validate_foreign_key(
+                    child_path,
+                    relationship["column"],
+                    parent_path,
+                    relationship["parent_column"],
+                )
+                print(
+                    f"PASS: {filename}.{relationship['column']} -> "
+                    f"{relationship['parent_file']}."
+                    f"{relationship['parent_column']}"
+                )
+            except (OSError, ValueError) as error:
+                errors.append(f"{filename}: {error}")
 
     if errors:
         print("\nVALIDATION FAILED")

@@ -2,7 +2,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from src.ingest import count_csv_rows, iter_csv_rows
+from src.ingest import (
+    count_csv_rows,
+    iter_csv_rows,
+    validate_unique_column,
+    validate_foreign_key,
+)
 
 
 class TestIngest(unittest.TestCase):
@@ -45,6 +50,77 @@ class TestIngest(unittest.TestCase):
             "Missing required columns",
         ):
             count_csv_rows(self.csv_path, ["email"])
+
+    def test_detects_duplicate_order_ids(self):
+        self.csv_path.write_text(
+            "order_id,status\n"
+            "order_1,delivered\n"
+            "order_1,canceled\n",
+            encoding="utf-8",
+        )
+
+        rows = list(iter_csv_rows(self.csv_path))
+        order_ids = [row["order_id"] for row in rows]
+
+        self.assertNotEqual(
+            len(order_ids),
+            len(set(order_ids)),
+        )
+
+
+    def test_unique_column_passes(self):
+        self.csv_path.write_text(
+            "order_id,status\n"
+            "order_1,delivered\n"
+            "order_2,canceled\n",
+            encoding="utf-8",
+        )
+
+        validate_unique_column(self.csv_path, "order_id")
+
+    def test_unique_column_rejects_duplicates(self):
+        self.csv_path.write_text(
+            "order_id,status\n"
+            "order_1,delivered\n"
+            "order_1,canceled\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(ValueError, "Duplicate value"):
+            validate_unique_column(self.csv_path, "order_id")
+
+
+
+    def test_foreign_key_accepts_valid_references(self):
+        parent = Path(self.temp_dir.name) / "parents.csv"
+        parent.write_text(
+            "id\nA\nB\n",
+            encoding="utf-8",
+        )
+        self.csv_path.write_text(
+            "parent_id\nA\nB\n",
+            encoding="utf-8",
+        )
+
+        validate_foreign_key(
+            self.csv_path, "parent_id", parent, "id"
+        )
+
+    def test_foreign_key_rejects_missing_reference(self):
+        parent = Path(self.temp_dir.name) / "parents.csv"
+        parent.write_text(
+            "id\nA\nB\n",
+            encoding="utf-8",
+        )
+        self.csv_path.write_text(
+            "parent_id\nA\nMISSING\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(ValueError, "Foreign-key value"):
+            validate_foreign_key(
+                self.csv_path, "parent_id", parent, "id"
+            )
 
 
 if __name__ == "__main__":
