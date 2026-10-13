@@ -85,6 +85,51 @@ class TestValidateDataset(unittest.TestCase):
             )
             self.assertIn("Duplicate value", printed_text)
 
+
+    def test_invalid_foreign_key_fails_validation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temporary_root = Path(temp_dir)
+
+            (temporary_root / "customers.csv").write_text(
+                "customer_id\ncustomer_1\n",
+                encoding="utf-8",
+            )
+            (temporary_root / "orders.csv").write_text(
+                "order_id,customer_id\norder_1,missing_customer\n",
+                encoding="utf-8",
+            )
+
+            manifest = {
+                "customers.csv": {
+                    "expected_rows": 1,
+                    "required_columns": ["customer_id"],
+                },
+                "orders.csv": {
+                    "expected_rows": 1,
+                    "required_columns": ["order_id", "customer_id"],
+                    "foreign_keys": [
+                        {
+                            "column": "customer_id",
+                            "parent_file": "customers.csv",
+                            "parent_column": "customer_id",
+                        }
+                    ],
+                },
+            }
+
+            with (
+                patch("src.validate_dataset.RAW_DATA_DIR", temporary_root),
+                patch("src.validate_dataset.DATASET_MANIFEST", manifest),
+                patch("builtins.print") as mock_print,
+            ):
+                result = validate_dataset()
+
+            self.assertFalse(result)
+            printed_text = " ".join(
+                str(call) for call in mock_print.call_args_list
+            )
+            self.assertIn("Foreign-key value", printed_text)
+
     def test_row_count_mismatch_fails_validation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             temporary_root = Path(temp_dir)
