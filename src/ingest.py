@@ -134,3 +134,35 @@ def validate_optional_foreign_key(
         )
 
     return sorted(unmatched_allowed)
+
+
+def validate_datetime_column(
+    path: str | Path,
+    column: str,
+    allow_blank: bool = False,
+) -> None:
+    """Validate ISO-format timestamps, optionally permitting blank values."""
+    from datetime import datetime
+
+    for row_number, row in enumerate(
+        iter_csv_rows(path, [column]),
+        start=2,
+    ):
+        value = (row[column] or "").strip()
+
+        if not value:
+            if allow_blank:
+                continue
+
+            raise ValueError(
+                f"Blank timestamp in column {column!r} "
+                f"at CSV row {row_number}: {path}"
+            )
+
+        try:
+            datetime.fromisoformat(value)
+        except ValueError as error:
+            raise ValueError(
+                f"Invalid timestamp {value!r} in column "
+                f"{column!r} at CSV row {row_number}: {path}"
+            ) from error

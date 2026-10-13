@@ -1,6 +1,7 @@
 from src.dataset_manifest import DATASET_MANIFEST, RAW_DATA_DIR
 from src.ingest import (
     count_csv_rows,
+    validate_datetime_column,
     validate_foreign_key,
     validate_optional_foreign_key,
     validate_unique_column,
@@ -41,6 +42,17 @@ def validate_dataset() -> bool:
         for column in specification.get("unique_columns", []):
             try:
                 validate_unique_column(path, column)
+            except (OSError, ValueError) as error:
+                errors.append(f"{filename}: {error}")
+                dataset_failed = True
+
+        for datetime_spec in specification.get("datetime_columns", []):
+            try:
+                validate_datetime_column(
+                    path,
+                    datetime_spec["column"],
+                    allow_blank=datetime_spec.get("allow_blank", False),
+                )
             except (OSError, ValueError) as error:
                 errors.append(f"{filename}: {error}")
                 dataset_failed = True

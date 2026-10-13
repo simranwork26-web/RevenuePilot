@@ -67,6 +67,8 @@ Implemented in `src/ingest.py`, `src/dataset_manifest.py`, and
 - Checks configured unique columns for duplicate values.
 - Validates required foreign-key relationships.
 - Validates optional product-category references against approved exceptions.
+- Parses configured timestamp columns and rejects invalid timestamps.
+- Rejects blank values in required timestamp columns while allowing configured optional blanks.
 - Returns a failing exit status when dataset validation fails.
 
 ### Known category exceptions
@@ -84,7 +86,9 @@ These values are reported rather than silently replaced or discarded.
 - Expected CSV files: 9
 - Total source rows: 1,550,922
 - Required foreign-key relationships: 6
-- Automated tests: 15 passing at the last recorded test run
+- Automated tests: 21 passing at the latest test run
+- Timestamp validation: implemented and covered by unit and validator-level tests
+- Actual dataset validation: 9 of 9 datasets passed
 
 Rerun the checks after changes to the pipeline or source data.
 
@@ -106,7 +110,6 @@ Check pending Git changes for whitespace errors:
 
 The following requirements are not yet implemented or fully tested:
 
-- Parsing and validating timestamp fields.
 - Checking financial fields for missing, non-numeric, zero, and negative
   values according to documented business rules.
 - Producing processed datasets under `data/processed/`.

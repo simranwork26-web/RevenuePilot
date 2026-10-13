@@ -107,6 +107,13 @@ DATASET_MANIFEST = {
                 "parent_column": "customer_id",
             }
         ],
+        "datetime_columns": [
+            {"column": "order_purchase_timestamp", "allow_blank": False},
+            {"column": "order_approved_at", "allow_blank": True},
+            {"column": "order_delivered_carrier_date", "allow_blank": True},
+            {"column": "order_delivered_customer_date", "allow_blank": True},
+            {"column": "order_estimated_delivery_date", "allow_blank": False},
+        ],
         "optional_foreign_keys": [],
     },
     "olist_products_dataset.csv": {
