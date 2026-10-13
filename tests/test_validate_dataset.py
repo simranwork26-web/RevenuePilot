@@ -54,6 +54,37 @@ class TestValidateDataset(unittest.TestCase):
             )
             self.assertIn("required_column", printed_text)
 
+
+    def test_duplicate_unique_values_fail_validation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temporary_root = Path(temp_dir)
+            dataset_path = temporary_root / "sample.csv"
+            dataset_path.write_text(
+                "id\nA\nA\n",
+                encoding="utf-8",
+            )
+
+            manifest = {
+                "sample.csv": {
+                    "expected_rows": 2,
+                    "required_columns": ["id"],
+                    "unique_columns": ["id"],
+                }
+            }
+
+            with (
+                patch("src.validate_dataset.RAW_DATA_DIR", temporary_root),
+                patch("src.validate_dataset.DATASET_MANIFEST", manifest),
+                patch("builtins.print") as mock_print,
+            ):
+                result = validate_dataset()
+
+            self.assertFalse(result)
+            printed_text = " ".join(
+                str(call) for call in mock_print.call_args_list
+            )
+            self.assertIn("Duplicate value", printed_text)
+
     def test_row_count_mismatch_fails_validation(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             temporary_root = Path(temp_dir)
