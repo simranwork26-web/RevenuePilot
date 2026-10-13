@@ -13,6 +13,7 @@ DATASET_MANIFEST = {
         ],
         "unique_columns": ["customer_id"],
         "foreign_keys": [],
+        "optional_foreign_keys": [],
     },
     "olist_geolocation_dataset.csv": {
         "expected_rows": 1_000_163,
@@ -23,6 +24,7 @@ DATASET_MANIFEST = {
         ],
         "unique_columns": [],
         "foreign_keys": [],
+        "optional_foreign_keys": [],
     },
     "olist_order_items_dataset.csv": {
         "expected_rows": 112_650,
@@ -52,6 +54,7 @@ DATASET_MANIFEST = {
                 "parent_column": "seller_id",
             },
         ],
+        "optional_foreign_keys": [],
     },
     "olist_order_payments_dataset.csv": {
         "expected_rows": 103_886,
@@ -62,7 +65,14 @@ DATASET_MANIFEST = {
             "payment_value",
         ],
         "unique_columns": [],
-        "foreign_keys": [],
+        "foreign_keys": [
+            {
+                "column": "order_id",
+                "parent_file": "olist_orders_dataset.csv",
+                "parent_column": "order_id",
+            }
+        ],
+        "optional_foreign_keys": [],
     },
     "olist_order_reviews_dataset.csv": {
         "expected_rows": 99_224,
@@ -72,7 +82,14 @@ DATASET_MANIFEST = {
             "review_score",
         ],
         "unique_columns": [],
-        "foreign_keys": [],
+        "foreign_keys": [
+            {
+                "column": "order_id",
+                "parent_file": "olist_orders_dataset.csv",
+                "parent_column": "order_id",
+            }
+        ],
+        "optional_foreign_keys": [],
     },
     "olist_orders_dataset.csv": {
         "expected_rows": 99_441,
@@ -83,7 +100,14 @@ DATASET_MANIFEST = {
             "order_purchase_timestamp",
         ],
         "unique_columns": ["order_id"],
-        "foreign_keys": [],
+        "foreign_keys": [
+            {
+                "column": "customer_id",
+                "parent_file": "olist_customers_dataset.csv",
+                "parent_column": "customer_id",
+            }
+        ],
+        "optional_foreign_keys": [],
     },
     "olist_products_dataset.csv": {
         "expected_rows": 32_951,
@@ -93,6 +117,17 @@ DATASET_MANIFEST = {
         ],
         "unique_columns": ["product_id"],
         "foreign_keys": [],
+        "optional_foreign_keys": [
+            {
+                "column": "product_category_name",
+                "parent_file": "product_category_name_translation.csv",
+                "parent_column": "product_category_name",
+                "allowed_unmatched": [
+                    "pc_gamer",
+                    "portateis_cozinha_e_preparadores_de_alimentos",
+                ],
+            }
+        ],
     },
     "olist_sellers_dataset.csv": {
         "expected_rows": 3_095,
@@ -101,6 +136,7 @@ DATASET_MANIFEST = {
         ],
         "unique_columns": ["seller_id"],
         "foreign_keys": [],
+        "optional_foreign_keys": [],
     },
     "product_category_name_translation.csv": {
         "expected_rows": 71,
@@ -110,5 +146,6 @@ DATASET_MANIFEST = {
         ],
         "unique_columns": ["product_category_name"],
         "foreign_keys": [],
+        "optional_foreign_keys": [],
     },
 }

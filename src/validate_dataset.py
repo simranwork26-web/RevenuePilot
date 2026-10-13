@@ -2,15 +2,15 @@ from src.dataset_manifest import DATASET_MANIFEST, RAW_DATA_DIR
 from src.ingest import (
     count_csv_rows,
     validate_foreign_key,
+    validate_optional_foreign_key,
     validate_unique_column,
 )
 
 
 def validate_dataset() -> bool:
-    """Validate files, schemas, row counts, unique columns, and relationships."""
+    """Validate source files, schemas, keys, row counts, and relationships."""
     errors = []
 
-    # First validate file existence, required columns, row counts, and uniqueness.
     for filename, specification in DATASET_MANIFEST.items():
         path = RAW_DATA_DIR / filename
 
@@ -48,7 +48,6 @@ def validate_dataset() -> bool:
         if not dataset_failed:
             print(f"PASS: {filename} ({actual_rows:,} rows)")
 
-    # Then validate configured foreign-key relationships.
     for filename, specification in DATASET_MANIFEST.items():
         child_path = RAW_DATA_DIR / filename
 
@@ -77,6 +76,38 @@ def validate_dataset() -> bool:
                     f"{relationship['parent_file']}."
                     f"{relationship['parent_column']}"
                 )
+            except (OSError, ValueError) as error:
+                errors.append(f"{filename}: {error}")
+
+        for relationship in specification.get("optional_foreign_keys", []):
+            parent_path = RAW_DATA_DIR / relationship["parent_file"]
+
+            if not parent_path.is_file():
+                errors.append(
+                    f"{filename}: missing parent file "
+                    f"{relationship['parent_file']}"
+                )
+                continue
+
+            try:
+                allowed_unmatched = validate_optional_foreign_key(
+                    child_path,
+                    relationship["column"],
+                    parent_path,
+                    relationship["parent_column"],
+                    set(relationship.get("allowed_unmatched", [])),
+                )
+                print(
+                    f"PASS: {filename}.{relationship['column']} -> "
+                    f"{relationship['parent_file']}."
+                    f"{relationship['parent_column']}"
+                )
+
+                if allowed_unmatched:
+                    print(
+                        "KNOWN UNTRANSLATED CATEGORIES:",
+                        ", ".join(allowed_unmatched),
+                    )
             except (OSError, ValueError) as error:
                 errors.append(f"{filename}: {error}")
 

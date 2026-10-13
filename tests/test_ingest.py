@@ -7,6 +7,7 @@ from src.ingest import (
     iter_csv_rows,
     validate_unique_column,
     validate_foreign_key,
+    validate_optional_foreign_key,
 )
 
 
@@ -120,6 +121,42 @@ class TestIngest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Foreign-key value"):
             validate_foreign_key(
                 self.csv_path, "parent_id", parent, "id"
+            )
+
+
+    def test_optional_foreign_key_allows_blank_and_approved_values(self):
+        parent = Path(self.temp_dir.name) / "categories.csv"
+        parent.write_text("category\nbooks\n", encoding="utf-8")
+        self.csv_path.write_text(
+            "category\nbooks\n\npc_gamer\n",
+            encoding="utf-8",
+        )
+
+        unmatched = validate_optional_foreign_key(
+            self.csv_path,
+            "category",
+            parent,
+            "category",
+            {"pc_gamer"},
+        )
+
+        self.assertEqual(unmatched, ["pc_gamer"])
+
+    def test_optional_foreign_key_rejects_unapproved_values(self):
+        parent = Path(self.temp_dir.name) / "categories.csv"
+        parent.write_text("category\nbooks\n", encoding="utf-8")
+        self.csv_path.write_text(
+            "category\nbooks\nunexpected_category\n",
+            encoding="utf-8",
+        )
+
+        with self.assertRaisesRegex(ValueError, "Unexpected foreign-key value"):
+            validate_optional_foreign_key(
+                self.csv_path,
+                "category",
+                parent,
+                "category",
+                {"pc_gamer"},
             )
 
 

@@ -94,3 +94,74 @@ def validate_foreign_key(
                 f"does not exist in {parent_path} column "
                 f"{parent_column!r}"
             )
+
+
+def validate_optional_foreign_key(
+    child_path: str | Path,
+    child_column: str,
+    parent_path: str | Path,
+    parent_column: str,
+) -> None:
+    """Validate non-empty child values against a parent column."""
+    parent_values = {
+        row[parent_column]
+        for row in iter_csv_rows(parent_path, [parent_column])
+        if row[parent_column].strip()
+    }
+
+    for row_number, row in enumerate(
+        iter_csv_rows(child_path, [child_column]),
+        start=2,
+    ):
+        value = row[child_column].strip()
+
+        if not value:
+            continue
+
+        if value not in parent_values:
+            raise ValueError(
+                f"Foreign-key value {value!r} in column "
+                f"{child_column!r} at CSV row {row_number} "
+                f"does not exist in {parent_path} column "
+                f"{parent_column!r}"
+            )
+
+
+def validate_optional_foreign_key(
+    child_path: str | Path,
+    child_column: str,
+    parent_path: str | Path,
+    parent_column: str,
+    allowed_unmatched: set[str] | None = None,
+) -> list[str]:
+    """Validate optional references and return allowed unmatched values."""
+    allowed = allowed_unmatched or set()
+
+    parent_values = {
+        row[parent_column].strip()
+        for row in iter_csv_rows(parent_path, [parent_column])
+        if row[parent_column].strip()
+    }
+
+    unmatched_allowed = set()
+
+    for row_number, row in enumerate(
+        iter_csv_rows(child_path, [child_column]),
+        start=2,
+    ):
+        value = row[child_column].strip()
+
+        if not value or value in parent_values:
+            continue
+
+        if value in allowed:
+            unmatched_allowed.add(value)
+            continue
+
+        raise ValueError(
+            f"Unexpected foreign-key value {value!r} in column "
+            f"{child_column!r} at CSV row {row_number}; "
+            f"not found in {parent_path} column {parent_column!r}"
+        )
+
+    return sorted(unmatched_allowed)
