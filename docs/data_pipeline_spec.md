@@ -1,0 +1,58 @@
+# RevenuePilot — Data Pipeline Specification
+
+## 1. Purpose
+
+Build a reproducible data pipeline that ingests the Olist Brazilian E-Commerce dataset, validates its structure and quality, and produces reliable processed datasets for SQL analytics, Power BI dashboards, and forecasting.
+
+## 2. Source data
+
+Source directory: `data/raw/olist/`
+
+Expected CSV files:
+
+- `olist_customers_dataset.csv`
+- `olist_geolocation_dataset.csv`
+- `olist_order_items_dataset.csv`
+- `olist_order_payments_dataset.csv`
+- `olist_order_reviews_dataset.csv`
+- `olist_orders_dataset.csv`
+- `olist_products_dataset.csv`
+- `olist_sellers_dataset.csv`
+- `product_category_name_translation.csv`
+
+## 3. Pipeline principles
+
+- Never overwrite or modify raw source files.
+- Make transformations deterministic and repeatable.
+- Validate required columns before processing.
+- Validate primary keys and relationships between tables.
+- Preserve legitimate missing values instead of inventing replacements.
+- Record validation failures and warnings.
+- Keep product prices, freight charges, and payment values as separate measures.
+- Prevent one-to-many joins from silently inflating business metrics.
+- Document metric definitions and transformation assumptions.
+
+## 4. Initial data-quality rules
+
+- Orders must have unique, non-empty `order_id` values.
+- Customer records must have unique, non-empty `customer_id` values.
+- Product records must have unique, non-empty `product_id` values.
+- Order-item references to orders, products, and sellers must be checked.
+- Order references to customers must be checked.
+- Purchase timestamps must parse successfully.
+- Missing delivery timestamps must not be fabricated.
+- Financial fields must be checked for missing, non-numeric, zero, and negative values.
+- Missing product categories and untranslated categories must be handled explicitly.
+- Payment totals must not be assumed to equal item value plus freight.
+
+## 5. Output locations
+
+- Source files: `data/raw/`
+- Processed datasets: `data/processed/`
+- Pipeline source code: `src/`
+- Automated tests: `tests/`
+- Documentation and validation reports: `docs/`
+
+## 6. Completion criteria
+
+The pipeline must be repeatable, validate its inputs, report actionable errors, preserve source data, and produce outputs that can be independently checked before downstream analytics use them.
