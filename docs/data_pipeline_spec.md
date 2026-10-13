@@ -56,3 +56,60 @@ Expected CSV files:
 ## 6. Completion criteria
 
 The pipeline must be repeatable, validate its inputs, report actionable errors, preserve source data, and produce outputs that can be independently checked before downstream analytics use them.
+
+## 7. Implemented validation checks
+
+Implemented in `src/ingest.py`, `src/dataset_manifest.py`, and
+`src/validate_dataset.py`:
+
+- Checks that all nine expected CSV files exist.
+- Checks required columns and expected row counts.
+- Checks configured unique columns for duplicate values.
+- Validates required foreign-key relationships.
+- Validates optional product-category references against approved exceptions.
+- Returns a failing exit status when dataset validation fails.
+
+### Known category exceptions
+
+Two product categories are explicitly allowed even though they are absent
+from the translation table:
+
+- `pc_gamer`
+- `portateis_cozinha_e_preparadores_de_alimentos`
+
+These values are reported rather than silently replaced or discarded.
+
+### Verified baseline
+
+- Expected CSV files: 9
+- Total source rows: 1,550,922
+- Required foreign-key relationships: 6
+- Automated tests: 15 passing at the last recorded test run
+
+Rerun the checks after changes to the pipeline or source data.
+
+### Verification commands
+
+Run automated tests:
+
+    .venv/bin/python -m unittest discover -s tests -v
+
+Validate the actual source datasets:
+
+    .venv/bin/python -m src.validate_dataset
+
+Check pending Git changes for whitespace errors:
+
+    git diff --check
+
+## 8. Planned validation work
+
+The following requirements are not yet implemented or fully tested:
+
+- Parsing and validating timestamp fields.
+- Checking financial fields for missing, non-numeric, zero, and negative
+  values according to documented business rules.
+- Producing processed datasets under `data/processed/`.
+- Generating a persistent validation report.
+- Documenting and testing transformation and metric definitions before
+  downstream SQL analytics begin.
