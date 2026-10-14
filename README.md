@@ -33,10 +33,12 @@ Completed milestones:
 - Milestone 1: Dataset acquisition and source-data audit.
 - Milestone 2: Data ingestion and validation.
 - Milestone 3: Order-level transformation and reconciliation.
+- Milestone 4: Customer and revenue analytics.
+- Milestone 5: Product category analytics.
+- Milestone 6: Regional analytics (implementation and tests complete; final review and commit in progress).
 
 Current milestone:
-- Milestone 4: Customer and revenue analytics.
-- Milestone 5: Product category analytics (implementation and tests complete; documentation and commit in progress).
+- Milestone 7: Customer segmentation and retention insights.
 
 Current processed dataset:
 - `data/processed/orders_analytics.csv`
@@ -48,7 +50,7 @@ Current processed dataset:
   `.venv/bin/python -m src.transform_orders`.
 
 Quality checks:
-- 44 automated tests passing after the core and monthly analytics additions.
+- 56 automated tests passing, including product category and regional analytics.
 - All nine raw source datasets pass the ingestion validation checks.
 - Aggregated item, freight, and payment totals reconcile with source totals.
 - Known source-data warnings are documented and retained for analysis.
