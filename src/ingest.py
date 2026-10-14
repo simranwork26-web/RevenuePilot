@@ -166,3 +166,66 @@ def validate_datetime_column(
                 f"Invalid timestamp {value!r} in column "
                 f"{column!r} at CSV row {row_number}: {path}"
             ) from error
+
+def validate_numeric_column(
+    path: str | Path,
+    column: str,
+    *,
+    minimum: float | None = None,
+    allow_zero: bool = True,
+    require_integer: bool = False,
+) -> int:
+    """Validate numeric values and return the number of zero values."""
+    from decimal import Decimal, InvalidOperation
+
+    zero_count = 0
+
+    for row_number, row in enumerate(
+        iter_csv_rows(path, [column]),
+        start=2,
+    ):
+        raw_value = (row[column] or "").strip()
+
+        if not raw_value:
+            raise ValueError(
+                f"Blank numeric value in column {column!r} "
+                f"at CSV row {row_number}: {path}"
+            )
+
+        try:
+            value = Decimal(raw_value)
+        except (InvalidOperation, ValueError) as error:
+            raise ValueError(
+                f"Non-numeric value {raw_value!r} in column "
+                f"{column!r} at CSV row {row_number}: {path}"
+            ) from error
+
+        if not value.is_finite():
+            raise ValueError(
+                f"Non-finite numeric value {raw_value!r} in column "
+                f"{column!r} at CSV row {row_number}: {path}"
+            )
+
+        if value == 0:
+            zero_count += 1
+
+            if not allow_zero:
+                raise ValueError(
+                    f"Zero value in column {column!r} "
+                    f"at CSV row {row_number}: {path}"
+                )
+
+        if minimum is not None and value < Decimal(str(minimum)):
+            raise ValueError(
+                f"Value {raw_value!r} in column {column!r} "
+                f"is below minimum {minimum} at CSV row "
+                f"{row_number}: {path}"
+            )
+
+        if require_integer and value != value.to_integral_value():
+            raise ValueError(
+                f"Non-integer value {raw_value!r} in column "
+                f"{column!r} at CSV row {row_number}: {path}"
+            )
+
+    return zero_count

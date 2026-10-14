@@ -5,6 +5,7 @@ from src.ingest import (
     validate_foreign_key,
     validate_optional_foreign_key,
     validate_unique_column,
+    validate_numeric_column,
 )
 
 
@@ -53,6 +54,26 @@ def validate_dataset() -> bool:
                     datetime_spec["column"],
                     allow_blank=datetime_spec.get("allow_blank", False),
                 )
+            except (OSError, ValueError) as error:
+                errors.append(f"{filename}: {error}")
+                dataset_failed = True
+
+        for numeric_spec in specification.get("numeric_columns", []):
+            try:
+                zero_count = validate_numeric_column(
+                    path,
+                    numeric_spec["column"],
+                    minimum=numeric_spec.get("minimum"),
+                    allow_zero=numeric_spec.get("allow_zero", True),
+                    require_integer=numeric_spec.get("require_integer", False),
+                )
+
+                if numeric_spec.get("warn_on_zero", False) and zero_count:
+                    print(
+                        f"WARNING: {filename}.{numeric_spec['column']} "
+                        f"contains {zero_count:,} zero values; "
+                        "review these records."
+                    )
             except (OSError, ValueError) as error:
                 errors.append(f"{filename}: {error}")
                 dataset_failed = True

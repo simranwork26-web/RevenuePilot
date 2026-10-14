@@ -55,15 +55,23 @@ DATASET_MANIFEST = {
             },
         ],
         "optional_foreign_keys": [],
+        "numeric_columns": [
+            {
+                "column": "price",
+                "minimum": 0.01,
+                "allow_zero": False,
+                "require_integer": False,
+            },
+            {
+                "column": "freight_value",
+                "minimum": 0,
+                "allow_zero": True,
+                "require_integer": False,
+            },
+        ],
     },
     "olist_order_payments_dataset.csv": {
         "expected_rows": 103_886,
-        "required_columns": [
-            "order_id",
-            "payment_sequential",
-            "payment_type",
-            "payment_value",
-        ],
         "unique_columns": [],
         "foreign_keys": [
             {
@@ -73,6 +81,29 @@ DATASET_MANIFEST = {
             }
         ],
         "optional_foreign_keys": [],
+        "required_columns": [
+            "order_id",
+            "payment_sequential",
+            "payment_type",
+            "payment_value",
+            "payment_installments",
+        ],
+        "numeric_columns": [
+            {
+                "column": "payment_value",
+                "minimum": 0,
+                "allow_zero": True,
+                "require_integer": False,
+                "warn_on_zero": True,
+            },
+            {
+                "column": "payment_installments",
+                "minimum": 0,
+                "allow_zero": True,
+                "require_integer": True,
+                "warn_on_zero": True,
+            },
+        ],
     },
     "olist_order_reviews_dataset.csv": {
         "expected_rows": 99_224,

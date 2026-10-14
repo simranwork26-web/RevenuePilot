@@ -69,6 +69,8 @@ Implemented in `src/ingest.py`, `src/dataset_manifest.py`, and
 - Validates optional product-category references against approved exceptions.
 - Parses configured timestamp columns and rejects invalid timestamps.
 - Rejects blank values in required timestamp columns while allowing configured optional blanks.
+- Validates configured numeric columns for blank, non-numeric, non-finite, below-minimum, disallowed-zero, and non-integer values.
+- Reports configurable zero-value warnings for payment values and payment installments without failing validation solely because of those warnings.
 - Returns a failing exit status when dataset validation fails.
 
 ### Known category exceptions
@@ -86,9 +88,11 @@ These values are reported rather than silently replaced or discarded.
 - Expected CSV files: 9
 - Total source rows: 1,550,922
 - Required foreign-key relationships: 6
-- Automated tests: 21 passing at the latest test run
+- Automated tests: 31 passing at the latest test run
 - Timestamp validation: implemented and covered by unit and validator-level tests
+- Numeric validation: implemented and covered by unit tests
 - Actual dataset validation: 9 of 9 datasets passed
+- Zero-value warnings: 9 payment values and 2 payment-installment records
 
 Rerun the checks after changes to the pipeline or source data.
 
@@ -106,12 +110,12 @@ Check pending Git changes for whitespace errors:
 
     git diff --check
 
-## 8. Planned validation work
+## 8. Remaining pipeline work
 
 The following requirements are not yet implemented or fully tested:
 
-- Checking financial fields for missing, non-numeric, zero, and negative
-  values according to documented business rules.
+- Investigating the nine zero-valued payment records and two zero-installment
+  records flagged by the current validation run.
 - Producing processed datasets under `data/processed/`.
 - Generating a persistent validation report.
 - Documenting and testing transformation and metric definitions before
