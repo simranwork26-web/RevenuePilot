@@ -88,7 +88,7 @@ These values are reported rather than silently replaced or discarded.
 - Expected CSV files: 9
 - Total source rows: 1,550,922
 - Required foreign-key relationships: 6
-- Automated tests: 31 passing at the latest test run
+- Automated tests: 34 passing at the completion of Milestone 3
 - Timestamp validation: implemented and covered by unit and validator-level tests
 - Numeric validation: implemented and covered by unit tests
 - Actual dataset validation: 9 of 9 datasets passed
@@ -116,7 +116,6 @@ The following requirements are not yet implemented or fully tested:
 
 - Investigating the nine zero-valued payment records and two zero-installment
   records flagged by the current validation run.
-- Producing processed datasets under `data/processed/`.
+- Extending processed datasets for additional analytical use cases.
 - Generating a persistent validation report.
-- Documenting and testing transformation and metric definitions before
-  downstream SQL analytics begin.
+- Documenting and testing metric definitions before downstream SQL analytics begin.
