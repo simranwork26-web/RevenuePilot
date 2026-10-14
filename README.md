@@ -35,7 +35,8 @@ Completed milestones:
 - Milestone 3: Order-level transformation and reconciliation.
 
 Current milestone:
-- Milestone 4: Customer and revenue analytics (in progress; core and monthly metrics implemented).
+- Milestone 4: Customer and revenue analytics.
+- Milestone 5: Product category analytics (implementation and tests complete; documentation and commit in progress).
 
 Current processed dataset:
 - `data/processed/orders_analytics.csv`
