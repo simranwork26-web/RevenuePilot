@@ -38,9 +38,10 @@ Completed milestones:
 - Milestone 6: Regional analytics.
 
 - Milestone 7: Customer segmentation and retention insights.
+- Milestone 8: PostgreSQL schema, data loading, and business query layer.
 
 Current milestone:
-- Milestone 8: SQL analytics and business query layer (planned).
+- Milestone 9: To be defined.
 
 Current processed dataset:
 - `data/processed/orders_analytics.csv`
@@ -60,8 +61,8 @@ Customer segmentation dataset:
 - Uses a fixed reference date of October 18, 2018.
 
 Quality checks:
-- 63 automated tests passing across the project, including category,
-  regional, and customer segmentation analytics.
+- 82 automated tests passing across the project, including PostgreSQL
+  loader parsing, CSV validation, and existing analytics tests.
 - All nine raw source datasets pass the ingestion validation checks.
 - Aggregated item, freight, and payment totals reconcile with source totals.
 - Known source-data warnings are documented and retained for analysis.
@@ -74,6 +75,14 @@ Quality checks:
 - `tests/` — Automated tests
 - `sql/` — SQL analytics
 - `docs/` — Project documentation
+
+PostgreSQL analytics:
+- Schema: `sql/schema.sql`
+- Business queries: `sql/business_queries.sql`
+- Loader: `src/load_postgres.py`
+- Specification: `docs/sql_analytics_spec.md`
+- Load datasets with `.venv/bin/python -m src.load_postgres`.
+- Run queries with `psql -v ON_ERROR_STOP=1 -d revenuepilot -f sql/business_queries.sql`.
 
 ## Quality Principles
 
