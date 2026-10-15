@@ -2,6 +2,12 @@ from fastapi import APIRouter, HTTPException
 
 from backend.database import get_connection
 
+from src.evaluate_revenue_forecast import load_weekly_revenue
+from src.revenue_forecasting import (
+    evaluate_linear_trend,
+    forecast_linear_trend,
+)
+
 router = APIRouter(prefix="/api", tags=["Analytics"])
 
 
@@ -185,3 +191,30 @@ def get_customer_retention() -> dict:
         FROM customer_first_second;
     """)
     return rows[0]
+
+@router.get("/revenue/forecast")
+def get_revenue_forecast() -> dict:
+    """Return a four-week historical-data revenue forecast."""
+    weekly_data = load_weekly_revenue()
+    evaluation = evaluate_linear_trend(weekly_data, test_weeks=12)
+    forecast = forecast_linear_trend(weekly_data, horizon=4)
+
+    return {
+        "forecast_horizon_weeks": 4,
+        "revenue_metric": "delivered_item_revenue",
+        "currency": "BRL",
+        "historical_cutoff": (
+            weekly_data["week_start"].max().isoformat()
+        ),
+        "forecast_status": "historical_demo",
+        "evaluation": evaluation,
+        "forecast": [
+            {
+                "week_start": row["week_start"].isoformat(),
+                "forecast_revenue": round(
+                    float(row["forecast_revenue"]), 2
+                ),
+            }
+            for _, row in forecast.iterrows()
+        ],
+    }

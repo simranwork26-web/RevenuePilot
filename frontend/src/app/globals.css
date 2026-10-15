@@ -198,6 +198,74 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
 .panel-link { display: flex; align-items: center; justify-content: space-between; width: 100%; margin-top: 19px; padding: 13px 0 0; border: 0; border-top: 1px solid var(--border); color: var(--accent); background: transparent; text-align: left; font-size: 10px; font-weight: 650; }
 .panel-link span { font-size: 15px; }
 
+
+.forecast-panel { margin: 0 0 16px; }
+.forecast-badge {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+  border: 1px solid #ddd6fe;
+  border-radius: 6px;
+  color: #6d4bc3;
+  background: #f5f3ff;
+  font-size: 8px;
+  font-weight: 750;
+  letter-spacing: .5px;
+}
+.forecast-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 17px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  font-size: 10px;
+  line-height: 1.6;
+}
+.forecast-notice strong { color: var(--text); }
+.forecast-notice span { color: var(--text-secondary); }
+.forecast-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.forecast-metrics > div {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.forecast-metrics span { color: var(--text-muted); font-size: 9px; }
+.forecast-metrics strong {
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+.forecast-chart { margin-top: 8px; }
+.forecast-detail-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0 0 14px;
+}
+.forecast-detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.forecast-detail-row span { color: var(--text-muted); font-size: 9px; }
+.forecast-detail-row strong { color: var(--text); font-size: 12px; }
+.forecast-error { color: #b91c1c; font-size: 12px; }
+
 .bottom-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
 .insight-title { display: flex; align-items: center; gap: 10px; }
 .insight-spark { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; color: var(--accent); background: var(--accent-soft); }

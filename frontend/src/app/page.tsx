@@ -28,6 +28,8 @@ import {
   getRegions,
   getCustomerSegments,
   getCustomerRetention,
+  getRevenueForecast,
+  type RevenueForecast,
   type CustomerRetention,
   type DashboardKpis,
   type MonthlyRevenue,
@@ -118,6 +120,58 @@ const buildRevenueOption = (monthlyData: MonthlyRevenue[]) => ({
   ],
 });
 
+const buildForecastOption = (
+  forecast: RevenueForecast["forecast"],
+) => ({
+  animationDuration: 650,
+  tooltip: {
+    trigger: "axis",
+    backgroundColor: "#142d4e",
+    borderWidth: 0,
+    textStyle: { color: "#ffffff" },
+    formatter: (params: { axisValue: string; value: number }[]) =>
+      `${params[0].axisValue}<br/><strong>${formatMoney(params[0].value)}</strong>`,
+  },
+  grid: { left: 8, right: 16, top: 20, bottom: 8, containLabel: true },
+  xAxis: {
+    type: "category",
+    boundaryGap: false,
+    data: forecast.map((row) =>
+      new Date(`${row.week_start.slice(0, 10)}T12:00:00`).toLocaleDateString(
+        "en-US",
+        { month: "short", day: "numeric", year: "2-digit" },
+      ),
+    ),
+    axisLine: { lineStyle: { color: "#e5eaf1" } },
+    axisTick: { show: false },
+    axisLabel: { color: "#8390a5", fontSize: 10, margin: 12 },
+  },
+  yAxis: {
+    type: "value",
+    min: 0,
+    splitNumber: 4,
+    axisLabel: {
+      color: "#8390a5",
+      fontSize: 10,
+      formatter: (value: number) => `${Math.round(value / 1000)}k`,
+    },
+    splitLine: { lineStyle: { color: "#edf1f6", type: "dashed" } },
+  },
+  series: [
+    {
+      name: "Historical trend projection",
+      type: "line",
+      smooth: 0.25,
+      symbol: "circle",
+      symbolSize: 8,
+      data: forecast.map((row) => row.forecast_revenue),
+      lineStyle: { color: "#7c5ce0", width: 3, type: "dashed" },
+      itemStyle: { color: "#7c5ce0", borderColor: "#ffffff", borderWidth: 2 },
+      areaStyle: { color: "rgba(124,92,224,0.10)" },
+    },
+  ],
+});
+
 const categoryColors = [
   "#2563eb",
   "#6092ed",
@@ -187,6 +241,8 @@ export default function Home() {
   const [segmentError, setSegmentError] = useState<string | null>(null);
   const [customerRetention, setCustomerRetention] = useState<CustomerRetention | null>(null);
   const [retentionError, setRetentionError] = useState<string | null>(null);
+  const [revenueForecast, setRevenueForecast] = useState<RevenueForecast | null>(null);
+  const [forecastError, setForecastError] = useState<string | null>(null);
   const [kpiError, setKpiError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -300,6 +356,28 @@ export default function Home() {
         if (!cancelled) {
           setRegionError(
             error instanceof Error ? error.message : "Unable to load regions.",
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getRevenueForecast()
+      .then((data) => {
+        if (!cancelled) setRevenueForecast(data);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setForecastError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load revenue forecast.",
           );
         }
       });
@@ -505,6 +583,89 @@ export default function Home() {
               <div className="panel-link" onClick={() => setActivePage("Products & categories")}>Explore all categories <span>→</span></div>
             </article>
           </div>
+
+          <section className="panel forecast-panel">
+            <div className="panel-header">
+              <div>
+                <h3>Revenue forecast</h3>
+                <p>Four-week linear-trend projection</p>
+              </div>
+              <span className="forecast-badge">HISTORICAL DEMO</span>
+            </div>
+
+            <div className="forecast-notice" role="note">
+              <strong>Historical projection, not a current forecast.</strong>
+              <span>
+                Based on Olist data through{" "}
+                {revenueForecast?.historical_cutoff ?? "20 Aug 2018"}.
+                Forecast dates are historical test outputs.
+              </span>
+            </div>
+
+            {forecastError ? (
+              <p role="alert" className="forecast-error">
+                Could not load forecast: {forecastError}
+              </p>
+            ) : revenueForecast ? (
+              <>
+                <div className="forecast-metrics">
+                  <div>
+                    <span>Trend model WAPE</span>
+                    <strong>{revenueForecast.evaluation.linear_trend.wape_pct.toFixed(2)}%</strong>
+                  </div>
+                  <div>
+                    <span>Baseline WAPE</span>
+                    <strong>{revenueForecast.evaluation.baseline.wape_pct.toFixed(2)}%</strong>
+                  </div>
+                  <div>
+                    <span>Relative WAPE improvement</span>
+                    <strong>
+                      {(
+                        (1 -
+                          revenueForecast.evaluation.linear_trend.wape_pct /
+                            revenueForecast.evaluation.baseline.wape_pct) *
+                        100
+                      ).toFixed(2)}%
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Test window</span>
+                    <strong>{revenueForecast.evaluation.test_weeks} weeks</strong>
+                  </div>
+                </div>
+
+                <div className="forecast-chart">
+                  <RevenueChart
+                    option={buildForecastOption(revenueForecast.forecast)}
+                    style={{ height: 250, width: "100%" }}
+                    notMerge
+                    lazyUpdate
+                  />
+                </div>
+
+                <div className="forecast-detail-list">
+                  {revenueForecast.forecast.map((row) => (
+                    <div className="forecast-detail-row" key={row.week_start}>
+                      <span>
+                        {new Date(`${row.week_start.slice(0, 10)}T12:00:00`).toLocaleDateString(
+                          "en-US",
+                          { month: "short", day: "numeric", year: "numeric" },
+                        )}
+                      </span>
+                      <strong>{formatMoney(row.forecast_revenue)}</strong>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="chart-footer">
+                  <span>Linear trend · chronological holdout evaluation</span>
+                  <span>Currency: BRL</span>
+                </div>
+              </>
+            ) : (
+              <div className="chart-loading">Loading revenue forecast…</div>
+            )}
+          </section>
 
           <section className="panel customer-segments-panel">
             <div className="panel-header">

@@ -82,3 +82,34 @@ export type CustomerRetention = {
 
 export const getCustomerRetention = () =>
   fetchApi<CustomerRetention>("/api/customers/retention");
+
+export type ForecastMetrics = {
+  mae: number;
+  rmse: number;
+  wape_pct: number;
+};
+
+export type RevenueForecast = {
+  forecast_horizon_weeks: number;
+  revenue_metric: string;
+  currency: string;
+  historical_cutoff: string;
+  forecast_status: "historical_demo" | string;
+  evaluation: {
+    training_weeks: number;
+    test_weeks: number;
+    training_start: string;
+    training_end: string;
+    test_start: string;
+    test_end: string;
+    baseline: ForecastMetrics;
+    linear_trend: ForecastMetrics;
+  };
+  forecast: {
+    week_start: string;
+    forecast_revenue: number;
+  }[];
+};
+
+export const getRevenueForecast = () =>
+  fetchApi<RevenueForecast>("/api/revenue/forecast");

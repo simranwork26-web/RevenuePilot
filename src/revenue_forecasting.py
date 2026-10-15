@@ -1,0 +1,148 @@
+from __future__ import annotations
+
+import numpy as np
+import pandas as pd
+
+
+REQUIRED_COLUMNS = {"week_start", "delivered_revenue"}
+
+
+def prepare_weekly_revenue(data: pd.DataFrame) -> pd.DataFrame:
+    """Validate and prepare a continuous weekly revenue series."""
+    missing = REQUIRED_COLUMNS - set(data.columns)
+    if missing:
+        raise ValueError(
+            f"Missing required columns: {', '.join(sorted(missing))}"
+        )
+
+    result = data[["week_start", "delivered_revenue"]].copy()
+    result["week_start"] = pd.to_datetime(
+        result["week_start"], errors="raise"
+    )
+    result["delivered_revenue"] = pd.to_numeric(
+        result["delivered_revenue"], errors="raise"
+    )
+
+    if result["week_start"].isna().any():
+        raise ValueError("week_start cannot contain missing values")
+    if result["delivered_revenue"].isna().any():
+        raise ValueError("delivered_revenue cannot contain missing values")
+    if not np.isfinite(result["delivered_revenue"]).all():
+        raise ValueError("delivered_revenue must contain finite values")
+    if (result["delivered_revenue"] < 0).any():
+        raise ValueError("delivered_revenue cannot be negative")
+
+    result = result.sort_values("week_start").reset_index(drop=True)
+
+    if result["week_start"].duplicated().any():
+        raise ValueError("week_start must be unique")
+    if not result["week_start"].diff().dropna().eq(
+        pd.Timedelta(days=7)
+    ).all():
+        raise ValueError("Observations must be exactly seven days apart")
+    if len(result) < 3:
+        raise ValueError("At least three weekly observations are required")
+
+    return result
+
+
+def forecast_linear_trend(
+    training: pd.DataFrame,
+    horizon: int = 4,
+) -> pd.DataFrame:
+    """Fit a linear trend to training revenue and forecast future weeks."""
+    history = prepare_weekly_revenue(training)
+
+    if not isinstance(horizon, int) or isinstance(horizon, bool) or horizon < 1:
+        raise ValueError("horizon must be a positive integer")
+
+    x = np.arange(len(history), dtype=float)
+    y = history["delivered_revenue"].to_numpy(dtype=float)
+    slope, intercept = np.polyfit(x, y, deg=1)
+
+    future_x = np.arange(
+        len(history), len(history) + horizon, dtype=float
+    )
+    predictions = np.maximum(intercept + slope * future_x, 0.0)
+    future_dates = pd.date_range(
+        start=history["week_start"].iloc[-1] + pd.Timedelta(days=7),
+        periods=horizon,
+        freq="7D",
+    )
+
+    return pd.DataFrame({
+        "week_start": future_dates,
+        "forecast_revenue": predictions,
+    })
+
+
+def evaluate_forecast(
+    actual: pd.Series,
+    predicted: pd.Series,
+) -> dict[str, float]:
+    """Calculate MAE, RMSE, and WAPE for aligned values."""
+    actual_values = np.asarray(actual, dtype=float)
+    predicted_values = np.asarray(predicted, dtype=float)
+
+    if actual_values.ndim != 1 or predicted_values.ndim != 1:
+        raise ValueError("Actual and predicted values must be one-dimensional")
+    if len(actual_values) == 0 or len(actual_values) != len(predicted_values):
+        raise ValueError("Actual and predicted values must have equal nonzero lengths")
+    if not np.isfinite(actual_values).all() or not np.isfinite(predicted_values).all():
+        raise ValueError("Actual and predicted values must be finite")
+    if (actual_values < 0).any() or (predicted_values < 0).any():
+        raise ValueError("Revenue values cannot be negative")
+
+    errors = actual_values - predicted_values
+    absolute_errors = np.abs(errors)
+    total_actual = actual_values.sum()
+    wape = (
+        float(100 * absolute_errors.sum() / total_actual)
+        if total_actual > 0
+        else float("nan")
+    )
+
+    return {
+        "mae": float(absolute_errors.mean()),
+        "rmse": float(np.sqrt(np.mean(errors**2))),
+        "wape_pct": wape,
+    }
+
+
+def evaluate_linear_trend(
+    weekly_data: pd.DataFrame,
+    test_weeks: int = 12,
+) -> dict:
+    """Compare linear trend and average baselines on a chronological holdout."""
+    data = prepare_weekly_revenue(weekly_data)
+
+    if not isinstance(test_weeks, int) or isinstance(test_weeks, bool):
+        raise ValueError("test_weeks must be an integer")
+    if test_weeks < 1 or test_weeks >= len(data) - 2:
+        raise ValueError(
+            "test_weeks must leave at least three training observations"
+        )
+
+    training = data.iloc[:-test_weeks].copy()
+    test = data.iloc[-test_weeks:].copy()
+
+    trend_predictions = forecast_linear_trend(training, horizon=test_weeks)
+    baseline_predictions = np.full(
+        test_weeks, training["delivered_revenue"].mean(), dtype=float
+    )
+    actual = test["delivered_revenue"].reset_index(drop=True)
+
+    return {
+        "training_weeks": len(training),
+        "test_weeks": len(test),
+        "training_start": training["week_start"].iloc[0].date().isoformat(),
+        "training_end": training["week_start"].iloc[-1].date().isoformat(),
+        "test_start": test["week_start"].iloc[0].date().isoformat(),
+        "test_end": test["week_start"].iloc[-1].date().isoformat(),
+        "baseline": evaluate_forecast(
+            actual, pd.Series(baseline_predictions)
+        ),
+        "linear_trend": evaluate_forecast(
+            actual, trend_predictions["forecast_revenue"]
+        ),
+    }
