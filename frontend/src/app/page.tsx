@@ -26,10 +26,12 @@ import {
   getMonthlyRevenue,
   getCategories,
   getRegions,
+  getCustomerSegments,
   type DashboardKpis,
   type MonthlyRevenue,
   type CategoryMetric,
   type RegionMetric,
+  type CustomerSegment,
 } from "@/lib/api";
 
 const RevenueChart = dynamic(() => import("echarts-for-react"), {
@@ -179,6 +181,8 @@ export default function Home() {
   const [regions, setRegions] = useState<RegionMetric[]>([]);
   const [categoryError, setCategoryError] = useState<string | null>(null);
   const [regionError, setRegionError] = useState<string | null>(null);
+  const [customerSegments, setCustomerSegments] = useState<CustomerSegment[]>([]);
+  const [segmentError, setSegmentError] = useState<string | null>(null);
   const [kpiError, setKpiError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -216,6 +220,28 @@ export default function Home() {
             error instanceof Error
               ? error.message
               : "Unable to load monthly revenue.",
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getCustomerSegments()
+      .then((data) => {
+        if (!cancelled) setCustomerSegments(data);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setSegmentError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load customer segments.",
           );
         }
       });
@@ -372,8 +398,8 @@ export default function Home() {
 
           <div className="data-notice">
             <span className="notice-icon"><Activity size={17} /></span>
-            <div><strong>Historical dataset preview</strong><span>Dashboard metrics, monthly revenue, categories, and regions load from PostgreSQL.</span></div>
-            <span className="notice-tag">PREVIEW</span>
+            <div><strong>Olist historical data</strong><span>Dashboard metrics, revenue trends, categories, regions, and customer segments are loaded from PostgreSQL.</span></div>
+            <span className="notice-tag">CONNECTED</span>
           </div>
 
           {kpiError && (
@@ -454,12 +480,66 @@ export default function Home() {
             </article>
           </div>
 
+          <section className="panel customer-segments-panel">
+            <div className="panel-header">
+              <div>
+                <h3>Customer intelligence</h3>
+                <p>Customer distribution, delivered item value, and average recency by segment</p>
+              </div>
+              <Users size={18} className="muted-icon" />
+            </div>
+            {segmentError ? (
+              <p role="alert">{segmentError}</p>
+            ) : customerSegments.length === 0 ? (
+              <p>Loading customer segments…</p>
+            ) : (
+              <div className="segment-list">
+                {customerSegments.map((segment, index) => {
+                  const totalCustomers = customerSegments.reduce(
+                    (total, item) => total + item.customer_count,
+                    0,
+                  );
+                  const share = totalCustomers
+                    ? (segment.customer_count / totalCustomers) * 100
+                    : 0;
+                  const colors = ["#2563eb", "#94a3b8", "#0d9488", "#8b5cf6"];
+                  return (
+                    <div className="segment-row" key={segment.segment}>
+                      <div className="segment-row-heading">
+                        <strong>{segment.segment}</strong>
+                        <span>{segment.customer_count.toLocaleString("en-US")} customers · {share.toFixed(2)}%</span>
+                      </div>
+                      <div className="bar-track">
+                        <div className="bar-fill" style={{
+                          width: `${share}%`,
+                          background: colors[index % colors.length],
+                        }} />
+                      </div>
+                      <div className="segment-row-details">
+                        <span>Delivered item value <strong>{formatMoney(segment.delivered_item_value)}</strong></span>
+                        <span>Avg. recency <strong>{segment.average_recency_days == null ? "—" : `${segment.average_recency_days.toFixed(1)} days`}</strong></span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+
           <div className="bottom-grid">
             <article className="panel insight-panel">
               <div className="panel-header"><div className="insight-title"><span className="insight-spark"><Sparkles size={17} /></span><div><h3>Business signal</h3><p>Evidence from your historical data</p></div></div><span className="insight-label">OPPORTUNITY</span></div>
               <h4>Customer retention deserves attention.</h4>
-              <p className="insight-body">2,997 of 96,096 unique customers have at least two recorded orders. This suggests a potential area to investigate, but the metric alone does not explain why customers do not return.</p>
-              <div className="insight-metrics"><div><span>Repeat customers</span><strong>2,997</strong></div><div><span>Recorded repeat rate</span><strong>3.12%</strong></div><div><span>Next investigation</span><strong>Purchase cohorts</strong></div></div>
+              <p className="insight-body">
+                {kpis && customerSegments.length
+                  ? `${kpis.repeat_customers.toLocaleString("en-US")} of ${kpis.unique_customers.toLocaleString("en-US")} unique customers have at least two recorded orders. This is a signal to investigate repeat purchasing, not proof of why customers do or do not return.`
+                  : "Loading customer metrics…"}
+              </p>
+              <div className="insight-metrics">
+                <div><span>Repeat customers</span><strong>{kpis ? kpis.repeat_customers.toLocaleString("en-US") : "—"}</strong></div>
+                <div><span>Recorded repeat rate</span><strong>{kpis ? `${kpis.repeat_customer_rate.toFixed(2)}%` : "—"}</strong></div>
+                <div><span>Next investigation</span><strong>Purchase cohorts</strong></div>
+              </div>
               <button className="insight-action" onClick={() => setActivePage("Customer intelligence")}>Explore customer intelligence <span>→</span></button>
             </article>
             <article className="panel regional-panel">
