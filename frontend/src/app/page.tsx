@@ -532,7 +532,7 @@ export default function Home() {
               <h4>Customer retention deserves attention.</h4>
               <p className="insight-body">
                 {kpis && customerSegments.length
-                  ? `${kpis.repeat_customers.toLocaleString("en-US")} of ${kpis.unique_customers.toLocaleString("en-US")} unique customers have at least two recorded orders. This is a signal to investigate repeat purchasing, not proof of why customers do or do not return.`
+                  ? `${kpis.repeat_customers.toLocaleString("en-US")} of ${kpis.unique_customers.toLocaleString("en-US")} unique customers have at least two recorded orders. The segment totals classify 18 repeat customers with no delivered orders under "No delivered order". Repeat purchasing does not by itself establish why customers return or leave.`
                   : "Loading customer metrics…"}
               </p>
               <div className="insight-metrics">
