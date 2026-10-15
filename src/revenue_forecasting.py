@@ -76,6 +76,43 @@ def forecast_linear_trend(
     })
 
 
+def forecast_seasonal_naive(
+    training: pd.DataFrame,
+    horizon: int = 4,
+    season_length: int = 52,
+) -> pd.DataFrame:
+    """Forecast each future week using revenue from the prior seasonal cycle."""
+    history = prepare_weekly_revenue(training)
+
+    if not isinstance(horizon, int) or isinstance(horizon, bool) or horizon < 1:
+        raise ValueError("horizon must be a positive integer")
+    if not isinstance(season_length, int) or isinstance(season_length, bool):
+        raise ValueError("season_length must be a positive integer")
+    if season_length < 1:
+        raise ValueError("season_length must be a positive integer")
+    if len(history) < season_length:
+        raise ValueError(
+            f"At least {season_length} observations are required"
+        )
+    if horizon > season_length:
+        raise ValueError("horizon cannot exceed season_length")
+
+    predictions = history["delivered_revenue"].iloc[
+        -season_length:-season_length + horizon
+    ].to_numpy(dtype=float)
+
+    future_dates = pd.date_range(
+        start=history["week_start"].iloc[-1] + pd.Timedelta(days=7),
+        periods=horizon,
+        freq="7D",
+    )
+
+    return pd.DataFrame({
+        "week_start": future_dates,
+        "forecast_revenue": predictions,
+    })
+
+
 def evaluate_forecast(
     actual: pd.Series,
     predicted: pd.Series,
@@ -132,7 +169,7 @@ def evaluate_linear_trend(
     )
     actual = test["delivered_revenue"].reset_index(drop=True)
 
-    return {
+    results = {
         "training_weeks": len(training),
         "test_weeks": len(test),
         "training_start": training["week_start"].iloc[0].date().isoformat(),
@@ -146,3 +183,13 @@ def evaluate_linear_trend(
             actual, trend_predictions["forecast_revenue"]
         ),
     }
+
+    if len(training) >= 52 and test_weeks <= 52:
+        seasonal_predictions = training["delivered_revenue"].iloc[
+            -52:-52 + test_weeks
+        ].reset_index(drop=True)
+        results["seasonal_naive"] = evaluate_forecast(
+            actual, seasonal_predictions
+        )
+
+    return results

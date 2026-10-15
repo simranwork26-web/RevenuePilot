@@ -7,6 +7,7 @@ from src.revenue_forecasting import (
     evaluate_forecast,
     evaluate_linear_trend,
     forecast_linear_trend,
+    forecast_seasonal_naive,
     prepare_weekly_revenue,
 )
 
@@ -91,6 +92,41 @@ class TestRevenueForecasting(unittest.TestCase):
             result["linear_trend"]["mae"],
             result["baseline"]["mae"],
         )
+
+
+    def test_seasonal_naive_uses_values_from_52_weeks_earlier(self):
+        data = pd.DataFrame({
+            "week_start": pd.date_range("2023-01-02", periods=60, freq="7D"),
+            "delivered_revenue": np.arange(60, dtype=float) * 100.0,
+        })
+
+        result = forecast_seasonal_naive(data, horizon=4)
+
+        np.testing.assert_allclose(
+            result["forecast_revenue"].to_numpy(),
+            data["delivered_revenue"].iloc[8:12].to_numpy(),
+        )
+        self.assertEqual(
+            result["week_start"].tolist(),
+            pd.date_range("2024-02-26", periods=4, freq="7D").tolist(),
+        )
+
+    def test_seasonal_naive_rejects_insufficient_history(self):
+        with self.assertRaisesRegex(ValueError, "At least 52 observations"):
+            forecast_seasonal_naive(self.data, horizon=4)
+
+    def test_holdout_includes_seasonal_naive_when_history_is_sufficient(self):
+        data = pd.DataFrame({
+            "week_start": pd.date_range("2023-01-02", periods=64, freq="7D"),
+            "delivered_revenue": np.arange(64, dtype=float) * 100.0 + 1000.0,
+        })
+
+        result = evaluate_linear_trend(data, test_weeks=4)
+
+        self.assertIn("seasonal_naive", result)
+        self.assertEqual(result["training_weeks"], 60)
+        self.assertEqual(result["test_weeks"], 4)
+        self.assertGreaterEqual(result["seasonal_naive"]["wape_pct"], 0.0)
 
 
 if __name__ == "__main__":

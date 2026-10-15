@@ -47,7 +47,11 @@ def main() -> None:
     print(f"Test weeks:      {results['test_weeks']}")
     print()
 
-    for model_name in ("baseline", "linear_trend"):
+    model_names = ["baseline", "linear_trend"]
+    if "seasonal_naive" in results:
+        model_names.append("seasonal_naive")
+
+    for model_name in model_names:
         metrics = results[model_name]
         print(model_name.replace("_", " ").title())
         print(f"  MAE:     R${metrics['mae']:,.2f}")
