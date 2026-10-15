@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Activity,
   ArrowDownRight,
@@ -21,6 +21,16 @@ import {
   Users,
   X,
 } from "lucide-react";
+import {
+  getDashboardKpis,
+  getMonthlyRevenue,
+  getCategories,
+  getRegions,
+  type DashboardKpis,
+  type MonthlyRevenue,
+  type CategoryMetric,
+  type RegionMetric,
+} from "@/lib/api";
 
 const RevenueChart = dynamic(() => import("echarts-for-react"), {
   ssr: false,
@@ -41,7 +51,7 @@ const themes = [
   { id: "warm", label: "Warm Neutral", color: "#71816a" },
 ];
 
-const revenueOption = {
+const buildRevenueOption = (monthlyData: MonthlyRevenue[]) => ({
   animationDuration: 650,
   tooltip: {
     trigger: "axis",
@@ -49,13 +59,19 @@ const revenueOption = {
     borderWidth: 0,
     textStyle: { color: "#ffffff" },
     formatter: (params: { axisValue: string; value: number }[]) =>
-      `${params[0].axisValue}<br/><strong>₹${params[0].value.toLocaleString("en-IN")}</strong>`,
+      `${params[0].axisValue}<br/><strong>${formatMoney(params[0].value)}</strong>`,
   },
   grid: { left: 8, right: 12, top: 20, bottom: 8, containLabel: true },
   xAxis: {
     type: "category",
     boundaryGap: false,
-    data: ["May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    data: monthlyData.map((row) => {
+      const [year, month] = row.month.split("-").map(Number);
+      return new Date(year, month - 1, 1).toLocaleDateString("en-US", {
+        month: "short",
+        year: "2-digit",
+      });
+    }),
     axisLine: { lineStyle: { color: "#e5eaf1" } },
     axisTick: { show: false },
     axisLabel: { color: "#8390a5", fontSize: 11, margin: 14 },
@@ -67,18 +83,18 @@ const revenueOption = {
       color: "#8390a5",
       fontSize: 11,
       formatter: (value: number) =>
-        value === 0 ? "0" : `${(value / 100000).toFixed(0)}L`,
+        value === 0 ? "0" : `${(value / 1000000).toFixed(1)}M`,
     },
     splitLine: { lineStyle: { color: "#edf1f6", type: "dashed" } },
   },
   series: [
     {
-      name: "Item value",
+      name: "Delivered item value",
       type: "line",
       smooth: 0.35,
       symbol: "circle",
-      symbolSize: 7,
-      data: [420000, 510000, 475000, 620000, 570000, 710000, 665000, 820000],
+      symbolSize: 5,
+      data: monthlyData.map((row) => row.delivered_item_value),
       lineStyle: { color: "#2563eb", width: 3 },
       itemStyle: { color: "#2563eb", borderColor: "#ffffff", borderWidth: 2 },
       areaStyle: {
@@ -96,20 +112,58 @@ const revenueOption = {
       },
     },
   ],
-};
+});
 
-const categoryRows = [
-  { name: "Health & beauty", value: 1233131.72, share: 100, color: "#2563eb" },
-  { name: "Watches & gifts", value: 1166176.98, share: 94.6, color: "#6092ed" },
-  { name: "Bed & bath table", value: 1023434.76, share: 83, color: "#8bb0f5" },
-  { name: "Sports & leisure", value: 954852.55, share: 77.4, color: "#b3caf7" },
-  { name: "Computers & accessories", value: 888724.61, share: 72.1, color: "#d1def8" },
+const categoryColors = [
+  "#2563eb",
+  "#6092ed",
+  "#8bb0f5",
+  "#b3caf7",
+  "#d1def8",
 ];
 
+const categoryLabels: Record<string, string> = {
+  health_beauty: "Health & beauty",
+  watches_gifts: "Watches & gifts",
+  bed_bath_table: "Bed & bath table",
+  sports_leisure: "Sports & leisure",
+  computers_accessories: "Computers & accessories",
+};
+
+const stateLabels: Record<string, string> = {
+  SP: "São Paulo",
+  RJ: "Rio de Janeiro",
+  MG: "Minas Gerais",
+  RS: "Rio Grande do Sul",
+  PR: "Paraná",
+  SC: "Santa Catarina",
+  BA: "Bahia",
+  DF: "Distrito Federal",
+  GO: "Goiás",
+  ES: "Espírito Santo",
+  PE: "Pernambuco",
+  CE: "Ceará",
+  PA: "Pará",
+  MT: "Mato Grosso",
+  MA: "Maranhão",
+  MS: "Mato Grosso do Sul",
+  PB: "Paraíba",
+  PI: "Piauí",
+  RN: "Rio Grande do Norte",
+  AL: "Alagoas",
+  SE: "Sergipe",
+  TO: "Tocantins",
+  RO: "Rondônia",
+  AM: "Amazonas",
+  AC: "Acre",
+  AP: "Amapá",
+  RR: "Roraima",
+};
+
 const formatMoney = (value: number) =>
-  new Intl.NumberFormat("en-IN", {
+  new Intl.NumberFormat("pt-BR", {
     style: "currency",
-    currency: "INR",
+    currency: "BRL",
     maximumFractionDigits: 0,
   }).format(value);
 
@@ -118,6 +172,90 @@ export default function Home() {
   const [activePage, setActivePage] = useState("Overview");
   const [showThemes, setShowThemes] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
+  const [kpis, setKpis] = useState<DashboardKpis | null>(null);
+  const [monthlyRevenue, setMonthlyRevenue] = useState<MonthlyRevenue[]>([]);
+  const [monthlyError, setMonthlyError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<CategoryMetric[]>([]);
+  const [regions, setRegions] = useState<RegionMetric[]>([]);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [regionError, setRegionError] = useState<string | null>(null);
+  const [kpiError, setKpiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getDashboardKpis()
+      .then((data) => {
+        if (!cancelled) setKpis(data);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setKpiError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load dashboard KPIs.",
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getMonthlyRevenue()
+      .then((data) => {
+        if (!cancelled) setMonthlyRevenue(data);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setMonthlyError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load monthly revenue.",
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getCategories()
+      .then((data) => {
+        if (!cancelled) setCategories(data);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setCategoryError(
+            error instanceof Error ? error.message : "Unable to load categories.",
+          );
+        }
+      });
+
+    getRegions()
+      .then((data) => {
+        if (!cancelled) setRegions(data);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setRegionError(
+            error instanceof Error ? error.message : "Unable to load regions.",
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <main className="app-shell" data-theme={theme}>
@@ -234,9 +372,15 @@ export default function Home() {
 
           <div className="data-notice">
             <span className="notice-icon"><Activity size={17} /></span>
-            <div><strong>Historical dataset preview</strong><span>Figures are based on the Olist dataset period. Some chart values are illustrative until the live data connection is implemented.</span></div>
+            <div><strong>Historical dataset preview</strong><span>Dashboard metrics, monthly revenue, categories, and regions load from PostgreSQL.</span></div>
             <span className="notice-tag">PREVIEW</span>
           </div>
+
+          {kpiError && (
+            <p role="alert" style={{ color: "#b91c1c", fontSize: 13 }}>
+              Could not load live KPI data: {kpiError}
+            </p>
+          )}
 
           <div className="section-heading">
             <div><h2>Performance snapshot</h2><p>Your key business indicators at a glance</p></div>
@@ -246,23 +390,23 @@ export default function Home() {
           <div className="kpi-grid">
             <article className="kpi-card">
               <div className="kpi-top"><span className="kpi-label">Delivered item value</span><span className="kpi-icon blue"><CreditCard size={18} /></span></div>
-              <div className="kpi-value">{formatMoney(13221498.11)}</div>
+              <div className="kpi-value">{kpis ? formatMoney(kpis.delivered_item_value) : "Loading…"}</div>
               <div className="kpi-foot"><span className="kpi-neutral">Historical total</span><span className="kpi-caption">Delivered orders only</span></div>
             </article>
             <article className="kpi-card">
               <div className="kpi-top"><span className="kpi-label">Delivered orders</span><span className="kpi-icon violet"><ShoppingCart size={18} /></span></div>
-              <div className="kpi-value">96,478</div>
-              <div className="kpi-foot"><span className="kpi-neutral">Historical total</span><span className="kpi-caption">Of 99,441 orders</span></div>
+              <div className="kpi-value">{kpis ? kpis.delivered_orders.toLocaleString("en-US") : "Loading…"}</div>
+              <div className="kpi-foot"><span className="kpi-neutral">Historical total</span><span className="kpi-caption">Of {kpis ? kpis.total_orders.toLocaleString("en-US") : "—"} orders</span></div>
             </article>
             <article className="kpi-card">
               <div className="kpi-top"><span className="kpi-label">Unique customers</span><span className="kpi-icon teal"><Users size={18} /></span></div>
-              <div className="kpi-value">96,096</div>
+              <div className="kpi-value">{kpis ? kpis.unique_customers.toLocaleString("en-US") : "Loading…"}</div>
               <div className="kpi-foot"><span className="kpi-neutral">Historical total</span><span className="kpi-caption">Distinct customer IDs</span></div>
             </article>
             <article className="kpi-card">
               <div className="kpi-top"><span className="kpi-label">Repeat customer rate</span><span className="kpi-icon amber"><Activity size={18} /></span></div>
-              <div className="kpi-value">3.12<span className="value-unit">%</span></div>
-              <div className="kpi-foot"><span className="kpi-insight"><ArrowDownRight size={14} /> Retention opportunity</span><span className="kpi-caption">2,997 repeat customers</span></div>
+              <div className="kpi-value">{kpis ? kpis.repeat_customer_rate.toFixed(2) : "Loading…"}<span className="value-unit">%</span></div>
+              <div className="kpi-foot"><span className="kpi-insight"><ArrowDownRight size={14} /> Retention opportunity</span><span className="kpi-caption">{kpis ? kpis.repeat_customers.toLocaleString("en-US") : "—"} repeat customers</span></div>
             </article>
           </div>
 
@@ -272,21 +416,39 @@ export default function Home() {
                 <div><h3>Revenue performance</h3><p>Monthly item value trend</p></div>
                 <button className="select-button">Monthly <ChevronDown size={14} /></button>
               </div>
-              <div className="chart-legend"><span /><span>Item value</span><small>Illustrative trend · not connected to live monthly data</small></div>
-              <RevenueChart option={revenueOption} style={{ height: 275, width: "100%" }} notMerge lazyUpdate />
-              <div className="chart-footer"><span><i /> Historical trend preview</span><span>Values shown in INR</span></div>
+              <div className="chart-legend"><span /><span>Delivered item value</span><small>Live monthly data · {monthlyRevenue.length} months</small></div>
+              <RevenueChart option={buildRevenueOption(monthlyRevenue)} style={{ height: 275, width: "100%" }} notMerge lazyUpdate />
+              <div className="chart-footer"><span><i /> {monthlyError ? "Monthly data unavailable" : "Olist historical data"}</span><span>Values shown in BRL</span></div>
             </article>
 
             <article className="panel category-panel">
               <div className="panel-header"><div><h3>Top product categories</h3><p>By delivered item value</p></div><button className="more-button" aria-label="More category options">···</button></div>
-              <div className="category-total">{formatMoney(1233131.72)}<span>Top category</span></div>
+              <div className="category-total">{categories.length ? formatMoney(categories[0].delivered_item_value) : "Loading…"}<span>Top category</span></div>
               <div className="category-list">
-                {categoryRows.map((row, index) => (
-                  <div className="category-row" key={row.name}>
-                    <div className="category-row-top"><span className="category-rank">{String(index + 1).padStart(2, "0")}</span><span className="category-name">{row.name}</span><strong>{formatMoney(row.value)}</strong></div>
-                    <div className="bar-track"><div className="bar-fill" style={{ width: `${row.share}%`, background: row.color }} /></div>
-                  </div>
-                ))}
+                {categoryError ? (
+                  <p role="alert">{categoryError}</p>
+                ) : categories.length === 0 ? (
+                  <p>Loading categories…</p>
+                ) : categories.slice(0, 5).map((row, index) => {
+                  const maximum = categories[0].delivered_item_value || 1;
+                  const name = categoryLabels[row.category]
+                    ?? row.category.replaceAll("_", " ");
+                  return (
+                    <div className="category-row" key={row.category}>
+                      <div className="category-row-top">
+                        <span className="category-rank">{String(index + 1).padStart(2, "0")}</span>
+                        <span className="category-name">{name}</span>
+                        <strong>{formatMoney(row.delivered_item_value)}</strong>
+                      </div>
+                      <div className="bar-track">
+                        <div className="bar-fill" style={{
+                          width: `${(row.delivered_item_value / maximum) * 100}%`,
+                          background: categoryColors[index % categoryColors.length],
+                        }} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               <div className="panel-link" onClick={() => setActivePage("Products & categories")}>Explore all categories <span>→</span></div>
             </article>
@@ -302,9 +464,22 @@ export default function Home() {
             </article>
             <article className="panel regional-panel">
               <div className="panel-header"><div><h3>Regional performance</h3><p>Leading states by delivered item value</p></div><MapPinned size={18} className="muted-icon" /></div>
-              <div className="region-feature"><div className="region-code">SP</div><div className="region-copy"><strong>São Paulo</strong><span>Highest delivered item value</span></div><div className="region-value">{formatMoney(5067633.16)}</div></div>
-              <div className="region-feature"><div className="region-code region-code-alt">RJ</div><div className="region-copy"><strong>Rio de Janeiro</strong><span>Second-highest state</span></div><div className="region-value">{formatMoney(1759651.13)}</div></div>
-              <div className="region-feature"><div className="region-code region-code-third">MG</div><div className="region-copy"><strong>Minas Gerais</strong><span>Third-highest state</span></div><div className="region-value">{formatMoney(1552481.83)}</div></div>
+              {regionError ? (
+                <p role="alert">{regionError}</p>
+              ) : regions.length === 0 ? (
+                <p>Loading regions…</p>
+              ) : regions.slice(0, 3).map((row, index) => (
+                <div className="region-feature" key={row.customer_state}>
+                  <div className={`region-code ${index === 1 ? "region-code-alt" : ""} ${index === 2 ? "region-code-third" : ""}`}>
+                    {row.customer_state}
+                  </div>
+                  <div className="region-copy">
+                    <strong>{stateLabels[row.customer_state] ?? row.customer_state}</strong>
+                    <span>{["Highest", "Second-highest", "Third-highest"][index]} delivered item value</span>
+                  </div>
+                  <div className="region-value">{formatMoney(row.delivered_item_value)}</div>
+                </div>
+              ))}
               <button className="panel-link region-link" onClick={() => setActivePage("Regional performance")}>View regional breakdown <span>→</span></button>
             </article>
           </div>
