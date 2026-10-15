@@ -73,3 +73,12 @@ export const getRegions = () =>
 
 export const getCustomerSegments = () =>
   fetchApi<CustomerSegment[]>("/api/customers/segments");
+
+export type CustomerRetention = {
+  eligible_customers: number;
+  customers_with_second_order_within_90_days: number;
+  second_order_within_90_days_pct: number | string;
+};
+
+export const getCustomerRetention = () =>
+  fetchApi<CustomerRetention>("/api/customers/retention");

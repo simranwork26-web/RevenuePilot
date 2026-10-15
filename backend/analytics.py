@@ -128,3 +128,60 @@ def get_customer_segments() -> list[dict]:
         }
         for row in rows
     ]
+
+@router.get("/customers/retention")
+def get_customer_retention() -> dict:
+    """Return the observed 90-day second-order rate for eligible customers."""
+    rows = fetch_all("""
+        WITH customer_order_ranks AS (
+            SELECT
+                customer_unique_id,
+                order_purchase_timestamp,
+                ROW_NUMBER() OVER (
+                    PARTITION BY customer_unique_id
+                    ORDER BY order_purchase_timestamp, order_id
+                ) AS order_rank
+            FROM orders
+            WHERE customer_unique_id IS NOT NULL
+              AND order_purchase_timestamp IS NOT NULL
+        ),
+        customer_first_second AS (
+            SELECT
+                customer_unique_id,
+                MIN(order_purchase_timestamp) FILTER (
+                    WHERE order_rank = 1
+                ) AS first_order,
+                MIN(order_purchase_timestamp) FILTER (
+                    WHERE order_rank = 2
+                ) AS second_order
+            FROM customer_order_ranks
+            GROUP BY customer_unique_id
+        )
+        SELECT
+            COUNT(*) FILTER (
+                WHERE DATE '2018-10-18' - first_order::date >= 90
+            ) AS eligible_customers,
+            COUNT(*) FILTER (
+                WHERE second_order IS NOT NULL
+                  AND DATE '2018-10-18' - first_order::date >= 90
+                  AND second_order <= first_order + INTERVAL '90 days'
+            ) AS customers_with_second_order_within_90_days,
+            ROUND(
+                (
+                    100.0 * COUNT(*) FILTER (
+                        WHERE second_order IS NOT NULL
+                          AND DATE '2018-10-18' - first_order::date >= 90
+                          AND second_order <= first_order + INTERVAL '90 days'
+                    )
+                    / NULLIF(
+                        COUNT(*) FILTER (
+                            WHERE DATE '2018-10-18' - first_order::date >= 90
+                        ),
+                        0
+                    )
+                )::numeric,
+                2
+            ) AS second_order_within_90_days_pct
+        FROM customer_first_second;
+    """)
+    return rows[0]

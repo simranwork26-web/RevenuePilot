@@ -27,6 +27,8 @@ import {
   getCategories,
   getRegions,
   getCustomerSegments,
+  getCustomerRetention,
+  type CustomerRetention,
   type DashboardKpis,
   type MonthlyRevenue,
   type CategoryMetric,
@@ -183,6 +185,8 @@ export default function Home() {
   const [regionError, setRegionError] = useState<string | null>(null);
   const [customerSegments, setCustomerSegments] = useState<CustomerSegment[]>([]);
   const [segmentError, setSegmentError] = useState<string | null>(null);
+  const [customerRetention, setCustomerRetention] = useState<CustomerRetention | null>(null);
+  const [retentionError, setRetentionError] = useState<string | null>(null);
   const [kpiError, setKpiError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -242,6 +246,28 @@ export default function Home() {
             error instanceof Error
               ? error.message
               : "Unable to load customer segments.",
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getCustomerRetention()
+      .then((data) => {
+        if (!cancelled) setCustomerRetention(data);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setRetentionError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load customer retention.",
           );
         }
       });
@@ -487,6 +513,25 @@ export default function Home() {
                 <p>Customer distribution, delivered item value, and average recency by segment</p>
               </div>
               <Users size={18} className="muted-icon" />
+            </div>
+            <div className="retention-summary">
+              <h4>90-day repeat-purchase rate</h4>
+              {retentionError ? (
+                <p role="alert">{retentionError}</p>
+              ) : customerRetention ? (
+                <>
+                  <strong>
+                    {Number(customerRetention.second_order_within_90_days_pct).toFixed(2)}%
+                  </strong>
+                  <p>
+                    {customerRetention.customers_with_second_order_within_90_days.toLocaleString("en-US")} of{" "}
+                    {customerRetention.eligible_customers.toLocaleString("en-US")} eligible customers placed a second recorded order within 90 days of their first.
+                  </p>
+                  <small>Historical Olist data · Reference date: 18 Oct 2018</small>
+                </>
+              ) : (
+                <p>Loading 90-day retention metric…</p>
+              )}
             </div>
             {segmentError ? (
               <p role="alert">{segmentError}</p>
