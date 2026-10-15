@@ -62,8 +62,8 @@ The library includes:
 | Freight value | 2,251,909.54 |
 | Recorded payment value | 16,008,872.12 |
 | Customers | 96,096 |
-| Repeat customers | 2,997 |
-| Repeat-customer percentage | 3.12% |
+| Eligible repeat customers (at least 2 recorded orders and at least 1 delivered order) | 2,979 |
+| Eligible repeat-customer percentage (of all unique customers) | 3.10% |
 | Monthly records | 26 |
 
 The SQL checks found no missing customer identifiers or purchase timestamps. Missing item values, payment values, and review scores remain preserved where present in the source data.
@@ -72,7 +72,7 @@ The SQL checks found no missing customer identifiers or purchase timestamps. Mis
 
 - Item value is not profit or audited accounting revenue.
 - Recorded payment value and item value are different measures.
-- Repeat-customer counts use the existing customer segmentation dataset and its recorded-order definition.
+- The repeat-customer summary counts customers with at least two recorded orders and at least one delivered order, matching the eligibility rule used for the Repeat and High-value repeat segments. Customers with multiple recorded orders but no delivered orders remain in No delivered order.
 - The monthly dataset preserves the zero-order month.
 - The data covers the source dataset period, not current business performance.
 

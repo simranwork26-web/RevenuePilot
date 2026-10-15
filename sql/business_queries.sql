@@ -45,16 +45,22 @@ GROUP BY segment
 ORDER BY customer_count DESC;
 
 -- 5. Repeat-customer summary
+-- Count repeat customers only when they have at least one delivered order.
 SELECT
-    COUNT(*) FILTER (WHERE order_count >= 2) AS repeat_customers,
+    COUNT(*) FILTER (
+        WHERE order_count >= 2 AND delivered_order_count > 0
+    ) AS repeat_customers,
     COUNT(*) AS all_customers,
     ROUND(
-        100.0 * COUNT(*) FILTER (WHERE order_count >= 2)
-        / NULLIF(COUNT(*), 0),
+        100.0 * COUNT(*) FILTER (
+            WHERE order_count >= 2 AND delivered_order_count > 0
+        ) / NULLIF(COUNT(*), 0),
         2
     ) AS repeat_customer_percentage,
     SUM(delivered_item_value)
-        FILTER (WHERE order_count >= 2) AS repeat_customer_delivered_item_value
+        FILTER (
+            WHERE order_count >= 2 AND delivered_order_count > 0
+        ) AS repeat_customer_delivered_item_value
 FROM customer_segmentation;
 
 -- 6. Data-quality checks
