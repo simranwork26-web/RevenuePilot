@@ -133,19 +133,58 @@ The low lag-52 autocorrelation and weak seasonal-naive results do not
 establish a reliable annual seasonal pattern. The available series is also
 too short to make strong claims about recurring annual effects.
 
-## 8. Current model-selection decision
+## 8. Adaptive model-selection experiment
 
-The full-history linear trend remains the leading candidate because it has
-the lowest aggregate WAPE in the eight-fold expanding-window experiment.
+Two selectors were evaluated against the fixed linear-trend and 13-week
+average models using the same eight-fold, four-week expanding-window
+backtest.
 
-The 13-week average remains a close benchmark. No new forecasting model
-has been promoted to production based solely on the exploratory results.
+- Full-history selector: selects between the linear trend and 13-week
+  average using all eligible inner validation windows within each outer
+  training window.
+- Recent-window selector: makes the same choice using only the two most
+  recent eligible inner validation windows.
 
-Before selecting a final model, comparisons should use identical forecast
-origins and horizons, preserve chronological ordering, and avoid using
-test-period information to fit predictions.
+The outer test periods remain chronological and separate from the inner
+validation windows used to make each selection.
 
-## 9. Limitations
+Aggregate results across the same 32 outer test weeks:
+
+| Model | MAE (R$) | RMSE (R$) | WAPE |
+|---|---:|---:|---:|
+| Linear trend | 32,730.49 | 45,593.26 | 15.32% |
+| Full-history selector | 32,730.49 | 45,593.26 | 15.32% |
+| 13-week average | 33,552.73 | 41,324.85 | 15.70% |
+| Recent-window selector | 38,362.67 | 49,704.88 | 17.95% |
+
+The full-history selector chose the linear trend in all eight outer folds
+and therefore produced the same predictions as the fixed trend model.
+The recent-window selector chose the 13-week average in two folds and the
+linear trend in six folds. Its aggregate WAPE was 2.63 percentage points
+higher than the fixed linear trend.
+
+The experiment does not demonstrate a benefit from adaptive model
+selection. The recent-window selector was less accurate in aggregate, while
+the full-history selector added complexity without changing the selected
+model.
+
+## 9. Current model-selection decision
+
+Keep the full-history linear trend as the leading production candidate.
+It has the lowest aggregate WAPE in the eight-fold expanding-window
+backtest (15.32%). The 13-week average remains a close benchmark at 15.70%
+WAPE and has a lower RMSE in that backtest.
+
+Do not promote the recent-window selector: its WAPE was 17.95%. The
+full-history selector also does not justify additional production
+complexity because it selected the trend model in every outer fold.
+
+This is a decision based on the available historical evidence, not a claim
+that the trend model will always perform best. Continue to report the
+evaluation period, forecast horizon, and model limitations alongside
+forecast results.
+
+## 10. Limitations
 
 - The dataset is historical and ends on 2018-10-17 at the source level.
   These forecasts are historical demonstrations, not current revenue
@@ -159,7 +198,7 @@ test-period information to fit predictions.
 - The current backtest uses overlapping training histories and evaluates
   a limited number of historical periods.
 
-## 10. Reproducibility
+## 11. Reproducibility
 
 Current evaluation entry point:
 
@@ -169,6 +208,7 @@ Run the existing holdout evaluation with:
 
 `.venv/bin/python -m src.evaluate_revenue_forecast`
 
-The expanding-window and alternate-window experiments in this document
-were run as exploratory terminal scripts. They have not yet been added
-as a permanent, automated backtesting module.
+The expanding-window backtest is available through the evaluation
+runner. The alternate trend-window and adaptive model-selection experiments
+were run as exploratory terminal scripts and are not yet implemented as
+permanent automated evaluation routines.
