@@ -590,14 +590,26 @@ export default function Home() {
                 <h3>Revenue forecast</h3>
                 <p>Four-week linear-trend projection</p>
               </div>
-              <span className="forecast-badge">HISTORICAL DEMO</span>
+              <span className="forecast-badge">
+                {(revenueForecast?.forecast_status ?? "historical_demo")
+                  .replaceAll("_", " ")
+                  .toUpperCase()}
+              </span>
             </div>
 
             <div className="forecast-notice" role="note">
               <strong>Historical projection, not a current forecast.</strong>
               <span>
                 Based on Olist data through{" "}
-                {revenueForecast?.historical_cutoff ?? "20 Aug 2018"}.
+                {revenueForecast?.historical_cutoff
+                  ? new Date(
+                      `${revenueForecast.historical_cutoff.slice(0, 10)}T12:00:00`,
+                    ).toLocaleDateString("en-GB", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "20 Aug 2018"}.
                 Forecast dates are historical test outputs.
               </span>
             </div>
