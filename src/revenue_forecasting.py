@@ -193,3 +193,103 @@ def evaluate_linear_trend(
         )
 
     return results
+
+
+def evaluate_expanding_window(
+    weekly_data: pd.DataFrame,
+    horizon: int = 4,
+    initial_train_weeks: int = 52,
+    step_size: int = 4,
+) -> dict:
+    """Evaluate forecasting benchmarks with expanding-window backtesting."""
+    data = prepare_weekly_revenue(weekly_data)
+
+    for name, value in (
+        ("horizon", horizon),
+        ("initial_train_weeks", initial_train_weeks),
+        ("step_size", step_size),
+    ):
+        if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+            raise ValueError(f"{name} must be a positive integer")
+
+    if initial_train_weeks < 3:
+        raise ValueError("initial_train_weeks must be at least three")
+    if len(data) < initial_train_weeks + horizon:
+        raise ValueError(
+            "Insufficient observations for the initial training window "
+            "and one test window"
+        )
+
+    average_windows = [
+        window for window in (4, 8, 13)
+        if initial_train_weeks >= window
+    ]
+    include_seasonal = initial_train_weeks >= 52 and horizon <= 52
+
+    fold_results = []
+    all_actual = []
+    all_predictions = {}
+
+    for test_start in range(
+        initial_train_weeks,
+        len(data) - horizon + 1,
+        step_size,
+    ):
+        training = data.iloc[:test_start].copy()
+        test = data.iloc[test_start:test_start + horizon].copy()
+        actual = test["delivered_revenue"].to_numpy(dtype=float)
+
+        predictions = {
+            "linear_trend": forecast_linear_trend(
+                training, horizon=horizon
+            )["forecast_revenue"].to_numpy(dtype=float),
+            "baseline": np.full(
+                horizon,
+                training["delivered_revenue"].mean(),
+                dtype=float,
+            ),
+        }
+
+        for window in average_windows:
+            predictions[f"{window}_week_average"] = np.full(
+                horizon,
+                training["delivered_revenue"].tail(window).mean(),
+                dtype=float,
+            )
+
+        if include_seasonal:
+            predictions["seasonal_naive"] = forecast_seasonal_naive(
+                training, horizon=horizon
+            )["forecast_revenue"].to_numpy(dtype=float)
+
+        fold_results.append({
+            "training_weeks": len(training),
+            "test_start": test["week_start"].iloc[0].date().isoformat(),
+            "test_end": test["week_start"].iloc[-1].date().isoformat(),
+            "models": {
+                name: evaluate_forecast(
+                    pd.Series(actual), pd.Series(predicted)
+                )
+                for name, predicted in predictions.items()
+            },
+        })
+
+        all_actual.extend(actual.tolist())
+        for name, predicted in predictions.items():
+            all_predictions.setdefault(name, []).extend(predicted.tolist())
+
+    actual_series = pd.Series(all_actual)
+    aggregate_metrics = {
+        name: evaluate_forecast(actual_series, pd.Series(predicted))
+        for name, predicted in all_predictions.items()
+    }
+
+    return {
+        "horizon": horizon,
+        "initial_train_weeks": initial_train_weeks,
+        "step_size": step_size,
+        "fold_count": len(fold_results),
+        "evaluated_weeks": len(all_actual),
+        "folds": fold_results,
+        "aggregate_metrics": aggregate_metrics,
+    }

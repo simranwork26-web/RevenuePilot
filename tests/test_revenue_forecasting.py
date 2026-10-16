@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 
 from src.revenue_forecasting import (
+    evaluate_expanding_window,
     evaluate_forecast,
     evaluate_linear_trend,
     forecast_linear_trend,
@@ -131,3 +132,94 @@ class TestRevenueForecasting(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestExpandingWindowEvaluation(unittest.TestCase):
+    def setUp(self):
+        self.data = pd.DataFrame({
+            "week_start": pd.date_range(
+                "2024-01-01", periods=24, freq="7D"
+            ),
+            "delivered_revenue": np.arange(24, dtype=float) * 10 + 100,
+        })
+
+    def test_expanding_windows_grow_and_test_periods_do_not_overlap(self):
+        result = evaluate_expanding_window(
+            self.data,
+            horizon=4,
+            initial_train_weeks=8,
+            step_size=4,
+        )
+
+        self.assertEqual(result["fold_count"], 4)
+        self.assertEqual(result["evaluated_weeks"], 16)
+        self.assertEqual(
+            [fold["training_weeks"] for fold in result["folds"]],
+            [8, 12, 16, 20],
+        )
+        self.assertEqual(result["folds"][0]["test_start"], "2024-02-26")
+        self.assertEqual(result["folds"][-1]["test_end"], "2024-06-10")
+
+    def test_aggregate_metrics_include_expected_models(self):
+        result = evaluate_expanding_window(
+            self.data,
+            horizon=4,
+            initial_train_weeks=8,
+            step_size=4,
+        )
+
+        metrics = result["aggregate_metrics"]
+        self.assertEqual(
+            set(metrics),
+            {
+                "linear_trend",
+                "baseline",
+                "4_week_average",
+                "8_week_average",
+            },
+        )
+        for model_metrics in metrics.values():
+            self.assertIn("mae", model_metrics)
+            self.assertIn("rmse", model_metrics)
+            self.assertIn("wape_pct", model_metrics)
+
+    def test_future_revenue_does_not_change_earlier_fold_predictions(self):
+        original = evaluate_expanding_window(
+            self.data,
+            horizon=4,
+            initial_train_weeks=8,
+            step_size=4,
+        )
+
+        changed_data = self.data.copy()
+        changed_data.loc[12:, "delivered_revenue"] += 100_000
+        changed = evaluate_expanding_window(
+            changed_data,
+            horizon=4,
+            initial_train_weeks=8,
+            step_size=4,
+        )
+
+        original_first = original["folds"][0]["models"]
+        changed_first = changed["folds"][0]["models"]
+        self.assertEqual(original_first, changed_first)
+
+    def test_rejects_insufficient_observations(self):
+        with self.assertRaisesRegex(ValueError, "Insufficient observations"):
+            evaluate_expanding_window(
+                self.data.iloc[:10],
+                horizon=4,
+                initial_train_weeks=8,
+                step_size=4,
+            )
+
+    def test_rejects_invalid_parameters(self):
+        for kwargs, message in (
+            ({"horizon": 0}, "horizon must be a positive integer"),
+            ({"initial_train_weeks": 2}, "initial_train_weeks must be"),
+            ({"step_size": 0}, "step_size must be a positive integer"),
+            ({"horizon": True}, "horizon must be a positive integer"),
+        ):
+            with self.subTest(kwargs=kwargs):
+                with self.assertRaisesRegex(ValueError, message):
+                    evaluate_expanding_window(self.data, **kwargs)

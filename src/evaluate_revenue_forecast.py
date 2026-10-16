@@ -3,7 +3,10 @@ import json
 import pandas as pd
 
 from backend.database import get_connection
-from src.revenue_forecasting import evaluate_linear_trend
+from src.revenue_forecasting import (
+    evaluate_expanding_window,
+    evaluate_linear_trend,
+)
 
 
 def load_weekly_revenue() -> pd.DataFrame:
@@ -37,6 +40,12 @@ def load_weekly_revenue() -> pd.DataFrame:
 def main() -> None:
     weekly_data = load_weekly_revenue()
     results = evaluate_linear_trend(weekly_data, test_weeks=12)
+    backtest = evaluate_expanding_window(
+        weekly_data,
+        horizon=4,
+        initial_train_weeks=52,
+        step_size=4,
+    )
 
     print("RevenuePilot | Weekly Revenue Forecast Evaluation")
     print("=" * 52)
@@ -68,8 +77,22 @@ def main() -> None:
     else:
         print("The trend model did not beat the average baseline on WAPE.")
 
-    print("\nStructured results:")
+    print("\nStructured holdout results:")
     print(json.dumps(results, indent=2))
+
+    print("\nExpanding-window backtest")
+    print("=" * 52)
+    print(f"Folds:            {backtest['fold_count']}")
+    print(f"Evaluated weeks:  {backtest['evaluated_weeks']}")
+    print(f"Forecast horizon: {backtest['horizon']} weeks")
+    print("\nAggregate metrics across all evaluated weeks:")
+    for model_name, metrics in backtest["aggregate_metrics"].items():
+        print(model_name.replace("_", " ").title())
+        print(f"  MAE:  R${metrics['mae']:,.2f}")
+        print(f"  RMSE: R${metrics['rmse']:,.2f}")
+        print(f"  WAPE: {metrics['wape_pct']:.2f}%")
+    print("\nStructured backtest results:")
+    print(json.dumps(backtest, indent=2))
 
 
 if __name__ == "__main__":
