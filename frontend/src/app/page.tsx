@@ -546,7 +546,7 @@ export default function Home() {
                 <div><h3>Revenue performance</h3><p>Monthly item value trend</p></div>
                 <button className="select-button">Monthly <ChevronDown size={14} /></button>
               </div>
-              <div className="chart-legend"><span /><span>Delivered item value</span><small>Live monthly data · {monthlyRevenue.length} months</small></div>
+              <div className="chart-legend"><span /><span>Delivered item value</span><small>Historical monthly data · {monthlyRevenue.length} months</small></div>
               <RevenueChart option={buildRevenueOption(monthlyRevenue)} style={{ height: 275, width: "100%" }} notMerge lazyUpdate />
               <div className="chart-footer"><span><i /> {monthlyError ? "Monthly data unavailable" : "Olist historical data"}</span><span>Values shown in BRL</span></div>
             </article>
@@ -588,7 +588,7 @@ export default function Home() {
             <div className="panel-header">
               <div>
                 <h3>Revenue forecast</h3>
-                <p>Four-week linear-trend projection</p>
+                <p>Four-week damped-trend projection</p>
               </div>
               <span className="forecast-badge">
                 {(revenueForecast?.forecast_status ?? "historical_demo")
@@ -622,8 +622,8 @@ export default function Home() {
               <>
                 <div className="forecast-metrics">
                   <div>
-                    <span>Trend model WAPE</span>
-                    <strong>{revenueForecast.evaluation.linear_trend.wape_pct.toFixed(2)}%</strong>
+                    <span>Damped trend model WAPE</span>
+                    <strong>{revenueForecast.evaluation.damped_trend.wape_pct.toFixed(2)}%</strong>
                   </div>
                   <div>
                     <span>Baseline WAPE</span>
@@ -634,7 +634,7 @@ export default function Home() {
                     <strong>
                       {(
                         (1 -
-                          revenueForecast.evaluation.linear_trend.wape_pct /
+                          revenueForecast.evaluation.damped_trend.wape_pct /
                             revenueForecast.evaluation.baseline.wape_pct) *
                         100
                       ).toFixed(2)}%
@@ -670,7 +670,7 @@ export default function Home() {
                 </div>
 
                 <div className="chart-footer">
-                  <span>Linear trend · chronological holdout evaluation</span>
+                  <span>Damped trend · chronological holdout evaluation</span>
                   <span>Currency: BRL</span>
                 </div>
               </>
