@@ -8,8 +8,8 @@ from backend.analytics import get_revenue_forecast
 
 class TestForecastEndpoint(unittest.TestCase):
 
-    @patch("backend.analytics.forecast_linear_trend")
-    @patch("backend.analytics.evaluate_linear_trend")
+    @patch("backend.analytics.forecast_damped_trend")
+    @patch("backend.analytics.evaluate_damped_trend")
     @patch("backend.analytics.load_weekly_revenue")
     def test_forecast_response_contract(
         self,
@@ -85,11 +85,19 @@ class TestForecastEndpoint(unittest.TestCase):
             mock_evaluate.call_args.kwargs["test_weeks"],
             12,
         )
+        self.assertEqual(
+            mock_evaluate.call_args.kwargs["damping_factor"],
+            0.25,
+        )
 
         mock_forecast.assert_called_once()
         self.assertEqual(
             mock_forecast.call_args.kwargs["horizon"],
             4,
+        )
+        self.assertEqual(
+            mock_forecast.call_args.kwargs["damping_factor"],
+            0.25,
         )
 
 

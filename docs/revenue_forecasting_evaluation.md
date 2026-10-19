@@ -40,16 +40,19 @@ The initial evaluation reserves the final 12 weeks for testing.
 - Training observations: 74 weeks.
 - Test observations: 12 weeks.
 
-Results from the current evaluation implementation:
+Results from the chronological 12-week holdout:
 
 | Model | MAE (R$) | RMSE (R$) | WAPE |
 |---|---:|---:|---:|
-| Mean baseline | 64,092.82 | 75,416.88 | 31.18% |
+| Damped trend (factor 0.25) | 51,858.52 | 63,895.74 | 25.23% |
 | Linear trend | 59,917.19 | 74,189.41 | 29.15% |
+| Mean baseline | 64,092.82 | 75,416.88 | 31.18% |
 | Seasonal naive | 97,816.11 | 105,462.43 | 47.59% |
 
-The linear trend improves WAPE by 6.51% relative to the mean baseline
-on this holdout. The seasonal-naive benchmark performs worse.
+On this holdout, damped trend reduces WAPE by 13.44% relative to linear
+trend and by 19.09% relative to the mean baseline. These are relative
+reductions in WAPE, not percentage-point differences. The seasonal-naive
+benchmark performs worse.
 
 An exploratory comparison on this same holdout tested constant forecasts
 based on the mean of the final 4, 8, and 13 training weeks:
@@ -79,6 +82,7 @@ Aggregate results across the same 32 evaluated weeks:
 
 | Model | MAE (R$) | RMSE (R$) | WAPE |
 |---|---:|---:|---:|
+| Damped trend (factor 0.25) | 30,983.58 | 43,510.55 | 14.50% |
 | Linear trend | 32,730.49 | 45,593.26 | 15.32% |
 | 13-week average | 33,552.73 | 41,324.85 | 15.70% |
 | 8-week average | 34,448.33 | 43,851.49 | 16.12% |
@@ -86,10 +90,16 @@ Aggregate results across the same 32 evaluated weeks:
 | Mean baseline | 80,526.06 | 87,587.08 | 37.68% |
 | Seasonal naive | 130,451.92 | 137,461.73 | 61.04% |
 
-The full-history linear trend has the lowest aggregate WAPE in this
-experiment. The 13-week average is a close competitor. The four-week
-average, despite its strong initial holdout result, does not lead in this
+Damped trend has the lowest aggregate WAPE among these candidates in this
+backtest. The 13-week average has lower RMSE, so the model choice depends
+partly on which error characteristic matters most. The four-week average,
+despite its strong initial holdout result, does not lead in this
 expanding-window comparison.
+
+Fold-level results qualify the aggregate improvement: damped trend still
+has high WAPE in folds 6 and 7 (37.86% and 47.16%). The 13-week average
+performs better on those folds. The damped model is therefore a promising
+candidate, not a universally superior model.
 
 The metrics from the initial 12-week holdout and the 32-week backtest
 must not be compared as if they came from the same test observations.
@@ -170,19 +180,22 @@ model.
 
 ## 9. Current model-selection decision
 
-Keep the full-history linear trend as the leading production candidate.
-It has the lowest aggregate WAPE in the eight-fold expanding-window
-backtest (15.32%). The 13-week average remains a close benchmark at 15.70%
-WAPE and has a lower RMSE in that backtest.
+Use damped linear trend with damping factor 0.25 as the current historical
+demo forecast model. It achieved 25.23% WAPE on the chronological 12-week
+holdout and 14.50% WAPE across the eight-fold, four-week expanding-window
+backtest. It outperformed the undamped linear trend on aggregate WAPE in
+both evaluations.
 
-Do not promote the recent-window selector: its WAPE was 17.95%. The
-full-history selector also does not justify additional production
-complexity because it selected the trend model in every outer fold.
+This choice is provisional. Damped trend still performs poorly in backtest
+folds 6 and 7, where the 13-week average has lower WAPE. The 13-week
+average also has lower aggregate RMSE across the eight folds. The adaptive
+selector experiments do not demonstrate a benefit from adding model
+selection complexity.
 
-This is a decision based on the available historical evidence, not a claim
-that the trend model will always perform best. Continue to report the
-evaluation period, forecast horizon, and model limitations alongside
-forecast results.
+These results support a historical demonstration model, not a claim that
+the forecast is production-ready or will always perform best. Continue to
+report the evaluation period, forecast horizon, target definition, and
+model limitations alongside forecast results.
 
 ## 10. Limitations
 

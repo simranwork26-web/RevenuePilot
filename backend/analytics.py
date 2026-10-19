@@ -4,8 +4,8 @@ from backend.database import get_connection
 
 from src.evaluate_revenue_forecast import load_weekly_revenue
 from src.revenue_forecasting import (
-    evaluate_linear_trend,
-    forecast_linear_trend,
+    evaluate_damped_trend,
+    forecast_damped_trend,
 )
 
 router = APIRouter(prefix="/api", tags=["Analytics"])
@@ -196,8 +196,12 @@ def get_customer_retention() -> dict:
 def get_revenue_forecast() -> dict:
     """Return a four-week historical-data revenue forecast."""
     weekly_data = load_weekly_revenue()
-    evaluation = evaluate_linear_trend(weekly_data, test_weeks=12)
-    forecast = forecast_linear_trend(weekly_data, horizon=4)
+    evaluation = evaluate_damped_trend(
+        weekly_data, test_weeks=12, damping_factor=0.25
+    )
+    forecast = forecast_damped_trend(
+        weekly_data, horizon=4, damping_factor=0.25
+    )
 
     return {
         "forecast_horizon_weeks": 4,

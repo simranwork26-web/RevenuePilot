@@ -76,6 +76,53 @@ def forecast_linear_trend(
     })
 
 
+
+def forecast_damped_trend(
+    training: pd.DataFrame,
+    horizon: int = 4,
+    damping_factor: float = 0.25,
+) -> pd.DataFrame:
+    """Forecast revenue with a damped linear trend from the forecast origin."""
+    history = prepare_weekly_revenue(training)
+
+    if not isinstance(horizon, int) or isinstance(horizon, bool) or horizon < 1:
+        raise ValueError("horizon must be a positive integer")
+
+    if (
+        isinstance(damping_factor, bool)
+        or not isinstance(damping_factor, (int, float, np.integer, np.floating))
+        or not np.isfinite(damping_factor)
+        or not 0.0 <= damping_factor <= 1.0
+    ):
+        raise ValueError("damping_factor must be a finite number between 0 and 1")
+
+    x = np.arange(len(history), dtype=float)
+    y = history["delivered_revenue"].to_numpy(dtype=float)
+    slope, intercept = np.polyfit(x, y, deg=1)
+
+    origin_x = len(history) - 1
+    origin_value = intercept + slope * origin_x
+
+    future_x = np.arange(
+        len(history), len(history) + horizon, dtype=float
+    )
+    trend_values = intercept + slope * future_x
+    predictions = np.maximum(
+        origin_value + damping_factor * (trend_values - origin_value),
+        0.0,
+    )
+
+    future_dates = pd.date_range(
+        start=history["week_start"].iloc[-1] + pd.Timedelta(days=7),
+        periods=horizon,
+        freq="7D",
+    )
+
+    return pd.DataFrame({
+        "week_start": future_dates,
+        "forecast_revenue": predictions,
+    })
+
 def forecast_seasonal_naive(
     training: pd.DataFrame,
     horizon: int = 4,
@@ -195,6 +242,60 @@ def evaluate_linear_trend(
     return results
 
 
+
+def evaluate_damped_trend(
+    weekly_data: pd.DataFrame,
+    test_weeks: int = 12,
+    damping_factor: float = 0.25,
+) -> dict:
+    """Evaluate damped trend and baselines on a chronological holdout."""
+    data = prepare_weekly_revenue(weekly_data)
+
+    if not isinstance(test_weeks, int) or isinstance(test_weeks, bool):
+        raise ValueError("test_weeks must be an integer")
+    if test_weeks < 1 or test_weeks >= len(data) - 2:
+        raise ValueError(
+            "test_weeks must leave at least three training observations"
+        )
+
+    training = data.iloc[:-test_weeks].copy()
+    test = data.iloc[-test_weeks:].copy()
+
+    trend_predictions = forecast_damped_trend(
+        training,
+        horizon=test_weeks,
+        damping_factor=damping_factor,
+    )
+    baseline_predictions = np.full(
+        test_weeks, training["delivered_revenue"].mean(), dtype=float
+    )
+    actual = test["delivered_revenue"].reset_index(drop=True)
+
+    results = {
+        "training_weeks": len(training),
+        "test_weeks": len(test),
+        "training_start": training["week_start"].iloc[0].date().isoformat(),
+        "training_end": training["week_start"].iloc[-1].date().isoformat(),
+        "test_start": test["week_start"].iloc[0].date().isoformat(),
+        "test_end": test["week_start"].iloc[-1].date().isoformat(),
+        "baseline": evaluate_forecast(
+            actual, pd.Series(baseline_predictions)
+        ),
+        "damped_trend": evaluate_forecast(
+            actual, trend_predictions["forecast_revenue"]
+        ),
+    }
+
+    if len(training) >= 52 and test_weeks <= 52:
+        seasonal_predictions = training["delivered_revenue"].iloc[
+            -52:-52 + test_weeks
+        ].reset_index(drop=True)
+        results["seasonal_naive"] = evaluate_forecast(
+            actual, seasonal_predictions
+        )
+
+    return results
+
 def evaluate_expanding_window(
     weekly_data: pd.DataFrame,
     horizon: int = 4,
@@ -242,6 +343,9 @@ def evaluate_expanding_window(
         predictions = {
             "linear_trend": forecast_linear_trend(
                 training, horizon=horizon
+            )["forecast_revenue"].to_numpy(dtype=float),
+            "damped_trend_0.25": forecast_damped_trend(
+                training, horizon=horizon, damping_factor=0.25
             )["forecast_revenue"].to_numpy(dtype=float),
             "baseline": np.full(
                 horizon,

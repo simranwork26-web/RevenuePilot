@@ -8,6 +8,7 @@ from src.revenue_forecasting import (
     evaluate_forecast,
     evaluate_linear_trend,
     forecast_linear_trend,
+    forecast_damped_trend,
     forecast_seasonal_naive,
     prepare_weekly_revenue,
 )
@@ -42,6 +43,41 @@ class TestRevenueForecasting(unittest.TestCase):
             [220.0, 230.0],
             atol=1e-8,
         )
+
+    def test_damped_trend_factor_one_matches_linear_trend(self):
+        linear = forecast_linear_trend(self.data.iloc[:12], horizon=4)
+        damped = forecast_damped_trend(
+            self.data.iloc[:12], horizon=4, damping_factor=1.0
+        )
+
+        np.testing.assert_allclose(
+            damped["forecast_revenue"].to_numpy(),
+            linear["forecast_revenue"].to_numpy(),
+            rtol=1e-10,
+            atol=1e-8,
+        )
+
+    def test_damped_trend_factor_zero_is_flat_at_origin(self):
+        training = self.data.iloc[:12]
+        result = forecast_damped_trend(
+            training, horizon=4, damping_factor=0.0
+        )
+
+        np.testing.assert_allclose(
+            result["forecast_revenue"].to_numpy(),
+            np.full(4, 210.0),
+            atol=1e-8,
+        )
+
+    def test_damped_trend_rejects_invalid_damping_factor(self):
+        for factor in (-0.1, 1.1, float("nan"), float("inf"), True):
+            with self.subTest(factor=factor):
+                with self.assertRaisesRegex(
+                    ValueError, "damping_factor must be"
+                ):
+                    forecast_damped_trend(
+                        self.data.iloc[:12], damping_factor=factor
+                    )
 
     def test_evaluate_forecast_metrics(self):
         metrics = evaluate_forecast(
@@ -173,6 +209,7 @@ class TestExpandingWindowEvaluation(unittest.TestCase):
             set(metrics),
             {
                 "linear_trend",
+                "damped_trend_0.25",
                 "baseline",
                 "4_week_average",
                 "8_week_average",
