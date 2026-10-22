@@ -31,9 +31,11 @@ import {
   getCustomerCohorts,
   getCustomerRetentionInsights,
   getRevenueForecast,
+  getRevenueBridge,
   type CustomerCohortRetention,
   type CustomerRetentionInsights,
   type RevenueForecast,
+  type RevenueBridge,
   type CustomerRetention,
   type DashboardKpis,
   type MonthlyRevenue,
@@ -251,6 +253,11 @@ export default function Home() {
   const [retentionInsightsError, setRetentionInsightsError] = useState<string | null>(null);
   const [revenueForecast, setRevenueForecast] = useState<RevenueForecast | null>(null);
   const [forecastError, setForecastError] = useState<string | null>(null);
+  const [bridgePreviousMonth, setBridgePreviousMonth] = useState("");
+  const [bridgeCurrentMonth, setBridgeCurrentMonth] = useState("");
+  const [revenueBridge, setRevenueBridge] = useState<RevenueBridge | null>(null);
+  const [bridgeError, setBridgeError] = useState<string | null>(null);
+  const [bridgeLoading, setBridgeLoading] = useState(true);
   const [kpiError, setKpiError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -417,6 +424,56 @@ export default function Home() {
       cancelled = true;
     };
   }, []);
+
+  const availableBridgeMonths = monthlyRevenue
+    .filter((row) => row.delivered_item_value > 0)
+    .map((row) => row.month.slice(0, 7));
+
+  const effectivePreviousMonth =
+    bridgePreviousMonth ||
+    availableBridgeMonths[availableBridgeMonths.length - 2] ||
+    "";
+  const effectiveCurrentMonth =
+    bridgeCurrentMonth ||
+    availableBridgeMonths[availableBridgeMonths.length - 1] ||
+    "";
+
+  const previousMonthOptions = availableBridgeMonths.filter(
+    (month) => month < effectiveCurrentMonth,
+  );
+  const currentMonthOptions = availableBridgeMonths.filter(
+    (month) => month > effectivePreviousMonth,
+  );
+
+  useEffect(() => {
+    if (!effectivePreviousMonth || !effectiveCurrentMonth) return;
+
+    let cancelled = false;
+
+    getRevenueBridge(effectivePreviousMonth, effectiveCurrentMonth)
+      .then((data) => {
+        if (!cancelled) {
+          setRevenueBridge(data);
+          setBridgeError(null);
+          setBridgeLoading(false);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setRevenueBridge(null);
+          setBridgeError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load revenue bridge.",
+          );
+          setBridgeLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectivePreviousMonth, effectiveCurrentMonth]);
 
   useEffect(() => {
     let cancelled = false;
@@ -729,6 +786,131 @@ export default function Home() {
               </>
             ) : (
               <div className="chart-loading">Loading revenue forecast…</div>
+            )}
+          </section>
+
+          <section className="panel revenue-bridge-panel">
+            <div className="panel-header">
+              <div>
+                <h3>Revenue change investigation</h3>
+                <p>Understand what drove delivered item revenue between two months</p>
+              </div>
+              <span className="forecast-badge">REVENUE BRIDGE</span>
+            </div>
+
+            <div className="bridge-controls">
+              <label>
+                Previous month
+                <select
+                  value={effectivePreviousMonth}
+                  onChange={(event) => {
+                    setBridgePreviousMonth(event.target.value);
+                    setBridgeError(null);
+                    setRevenueBridge(null);
+                    setBridgeLoading(true);
+                  }}
+                >
+                  {previousMonthOptions.map((month) => (
+                    <option key={month} value={month}>{month}</option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Current month
+                <select
+                  value={effectiveCurrentMonth}
+                  onChange={(event) => {
+                    setBridgeCurrentMonth(event.target.value);
+                    setBridgeError(null);
+                    setRevenueBridge(null);
+                    setBridgeLoading(true);
+                  }}
+                >
+                  {currentMonthOptions.map((month) => (
+                    <option key={month} value={month}>{month}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+
+            {effectivePreviousMonth === effectiveCurrentMonth ? (
+              <p role="alert" className="bridge-message">
+                Choose two different months to investigate revenue change.
+              </p>
+            ) : bridgeError ? (
+              <p role="alert" className="bridge-message">
+                Could not load revenue bridge: {bridgeError}
+              </p>
+            ) : bridgeLoading || !revenueBridge ? (
+              <div className="chart-loading">Calculating revenue change…</div>
+            ) : (
+              <>
+                <div className="bridge-summary">
+                  <div>
+                    <span>Revenue change</span>
+                    <strong className={revenueBridge.revenue_change < 0 ? "bridge-negative" : "bridge-positive"}>
+                      {revenueBridge.revenue_change > 0 ? "+" : ""}
+                      {formatMoney(revenueBridge.revenue_change)}
+                    </strong>
+                    <small>
+                      {revenueBridge.revenue_change_pct === null
+                        ? "Percentage change unavailable from zero baseline"
+                        : `${revenueBridge.revenue_change_pct > 0 ? "+" : ""}${revenueBridge.revenue_change_pct.toFixed(2)}% versus previous month`}
+                    </small>
+                  </div>
+                  <div>
+                    <span>Delivered revenue</span>
+                    <strong>{formatMoney(revenueBridge.previous_revenue)} → {formatMoney(revenueBridge.current_revenue)}</strong>
+                    <small>
+                      {new Date(`${revenueBridge.previous_month}T00:00:00`).toLocaleDateString("en-US", {
+                        month: "short",
+                        year: "numeric",
+                      })} → {new Date(`${revenueBridge.current_month}T00:00:00`).toLocaleDateString("en-US", {
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </small>
+                  </div>
+                </div>
+
+                <div className="forecast-metrics bridge-metrics">
+                  <div>
+                    <span>Order-volume impact</span>
+                    <strong className={revenueBridge.volume_impact < 0 ? "bridge-negative" : "bridge-positive"}>
+                      {revenueBridge.volume_impact > 0 ? "+" : ""}{formatMoney(revenueBridge.volume_impact)}
+                    </strong>
+                    <small>{revenueBridge.previous_delivered_orders.toLocaleString("en-US")} → {revenueBridge.current_delivered_orders.toLocaleString("en-US")} delivered orders</small>
+                  </div>
+                  <div>
+                    <span>Average-order-value impact</span>
+                    <strong className={revenueBridge.average_order_value_impact < 0 ? "bridge-negative" : "bridge-positive"}>
+                      {revenueBridge.average_order_value_impact > 0 ? "+" : ""}{formatMoney(revenueBridge.average_order_value_impact)}
+                    </strong>
+                    <small>{formatMoney(revenueBridge.previous_average_order_value)} → {formatMoney(revenueBridge.current_average_order_value)} average order value</small>
+                  </div>
+                </div>
+
+                <div className="forecast-notice bridge-interpretation">
+                  <strong>Business interpretation</strong>
+                  <span>
+                    {revenueBridge.revenue_change === 0
+                      ? "Delivered item revenue was unchanged between the selected months."
+                      : `Revenue ${revenueBridge.revenue_change < 0 ? "declined" : "increased"} by ${formatMoney(Math.abs(revenueBridge.revenue_change))}. `}
+                    {revenueBridge.volume_impact > 0
+                      ? "Higher delivered order volume contributed positively to revenue."
+                      : revenueBridge.volume_impact < 0
+                        ? "Lower delivered order volume put downward pressure on revenue."
+                        : "Delivered order volume had no net impact on revenue."}
+                    {" "}
+                    {revenueBridge.average_order_value_impact > 0
+                      ? "Higher average order value also contributed positively."
+                      : revenueBridge.average_order_value_impact < 0
+                        ? "Lower average order value put downward pressure on revenue."
+                        : "Average order value had no net impact on revenue."}
+                  </span>
+                  <small>Decomposition explains the change mathematically; it does not establish the underlying cause of pricing or order-mix changes.</small>
+                </div>
+              </>
             )}
           </section>
 

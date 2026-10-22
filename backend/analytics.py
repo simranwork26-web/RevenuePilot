@@ -6,6 +6,9 @@ from backend.customer_cohorts import (
     build_cohort_retention,
 )
 from backend.retention_insights import build_retention_insights
+from datetime import date
+from fastapi import Query
+from backend.revenue_bridge import build_revenue_bridge
 
 from src.evaluate_revenue_forecast import load_weekly_revenue
 from src.revenue_forecasting import (
@@ -16,11 +19,11 @@ from src.revenue_forecasting import (
 router = APIRouter(prefix="/api", tags=["Analytics"])
 
 
-def fetch_all(query: str) -> list[dict]:
+def fetch_all(query: str, params: tuple | None = None) -> list[dict]:
     """Execute a read-only analytics query and return JSON-ready rows."""
     try:
         with get_connection() as conn:
-            rows = conn.execute(query).fetchall()
+            rows = conn.execute(query, params).fetchall() if params is not None else conn.execute(query).fetchall()
             return [dict(row) for row in rows]
     except Exception as exc:
         raise HTTPException(
@@ -55,6 +58,71 @@ def get_monthly_revenue() -> list[dict]:
         }
         for row in rows
     ]
+
+
+@router.get("/revenue/bridge")
+def get_revenue_bridge(
+    previous_month: str = Query(..., description="Previous month in YYYY-MM format"),
+    current_month: str = Query(..., description="Current month in YYYY-MM format"),
+) -> dict:
+    """Explain delivered item revenue change between two months."""
+    try:
+        previous_date = date.fromisoformat(f"{previous_month}-01")
+        current_date = date.fromisoformat(f"{current_month}-01")
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail="Months must use YYYY-MM format.",
+        ) from exc
+
+    if previous_date.strftime("%Y-%m") != previous_month or current_date.strftime("%Y-%m") != current_month:
+        raise HTTPException(
+            status_code=400,
+            detail="Months must use YYYY-MM format.",
+        )
+
+    if current_date <= previous_date:
+        raise HTTPException(
+            status_code=400,
+            detail="current_month must be later than previous_month.",
+        )
+
+    rows = fetch_all(
+        """
+        SELECT
+            month,
+            delivered_order_count,
+            delivered_item_value
+        FROM monthly_revenue_analytics
+        WHERE month IN (%s, %s)
+        ORDER BY month;
+        """,
+        (previous_date, current_date),
+    )
+
+    by_month = {
+        row["month"].isoformat(): {
+            **row,
+            "month": row["month"].isoformat(),
+            "delivered_order_count": int(row["delivered_order_count"]),
+            "delivered_item_value": float(row["delivered_item_value"]),
+        }
+        for row in rows
+    }
+
+    previous_key = previous_date.isoformat()
+    current_key = current_date.isoformat()
+
+    if previous_key not in by_month or current_key not in by_month:
+        raise HTTPException(
+            status_code=404,
+            detail="One or both selected months are unavailable.",
+        )
+
+    return build_revenue_bridge(
+        by_month[previous_key],
+        by_month[current_key],
+    )
 
 
 @router.get("/categories")

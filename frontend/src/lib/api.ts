@@ -149,7 +149,7 @@ export type RevenueForecast = {
     test_start: string;
     test_end: string;
     baseline: ForecastMetrics;
-    linear_trend: ForecastMetrics;
+    damped_trend: ForecastMetrics;
   };
   forecast: {
     week_start: string;
@@ -159,3 +159,27 @@ export type RevenueForecast = {
 
 export const getRevenueForecast = () =>
   fetchApi<RevenueForecast>("/api/revenue/forecast");
+
+
+export type RevenueBridge = {
+  previous_month: string;
+  current_month: string;
+  previous_revenue: number;
+  current_revenue: number;
+  revenue_change: number;
+  revenue_change_pct: number | null;
+  previous_delivered_orders: number;
+  current_delivered_orders: number;
+  previous_average_order_value: number;
+  current_average_order_value: number;
+  volume_impact: number;
+  average_order_value_impact: number;
+};
+
+export const getRevenueBridge = (
+  previousMonth: string,
+  currentMonth: string,
+) =>
+  fetchApi<RevenueBridge>(
+    `/api/revenue/bridge?previous_month=${encodeURIComponent(previousMonth)}&current_month=${encodeURIComponent(currentMonth)}`,
+  );
