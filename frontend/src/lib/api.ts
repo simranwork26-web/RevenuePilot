@@ -99,6 +99,36 @@ export type CustomerCohortRetention = {
 export const getCustomerCohorts = () =>
   fetchApi<CustomerCohortRetention>("/api/customers/cohorts");
 
+
+export type RetentionCohortSummary = {
+  cohort_month: string;
+  cohort_size: number;
+  retention_pct: number;
+};
+
+export type ComparableRetention = {
+  month_number: number;
+  cohort_count: number;
+  average_retention_pct: number;
+  highest: RetentionCohortSummary;
+  lowest: RetentionCohortSummary;
+  status: "no_observed_repeat_activity" | "retention_observed";
+  interpretation: string;
+};
+
+export type CustomerRetentionInsights = {
+  minimum_cohort_size: number;
+  small_cohort_count: number;
+  small_cohorts: {
+    cohort_month: string;
+    cohort_size: number;
+  }[];
+  comparable_retention: ComparableRetention | null;
+};
+
+export const getCustomerRetentionInsights = () =>
+  fetchApi<CustomerRetentionInsights>("/api/customers/retention-insights");
+
 export type ForecastMetrics = {
   mae: number;
   rmse: number;

@@ -5,6 +5,7 @@ from backend.customer_cohorts import (
     COHORT_QUERY,
     build_cohort_retention,
 )
+from backend.retention_insights import build_retention_insights
 
 from src.evaluate_revenue_forecast import load_weekly_revenue
 from src.revenue_forecasting import (
@@ -144,6 +145,14 @@ def get_customer_cohorts() -> dict:
     """Return monthly delivered-order customer cohort retention."""
     rows = fetch_all(COHORT_QUERY)
     return build_cohort_retention(rows)
+
+
+@router.get("/customers/retention-insights")
+def get_customer_retention_insights() -> dict:
+    """Return descriptive insights from monthly customer cohorts."""
+    rows = fetch_all(COHORT_QUERY)
+    cohort_data = build_cohort_retention(rows)
+    return build_retention_insights(cohort_data["cohorts"])
 
 
 @router.get("/customers/retention")

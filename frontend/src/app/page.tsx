@@ -29,8 +29,10 @@ import {
   getCustomerSegments,
   getCustomerRetention,
   getCustomerCohorts,
+  getCustomerRetentionInsights,
   getRevenueForecast,
   type CustomerCohortRetention,
+  type CustomerRetentionInsights,
   type RevenueForecast,
   type CustomerRetention,
   type DashboardKpis,
@@ -245,6 +247,8 @@ export default function Home() {
   const [retentionError, setRetentionError] = useState<string | null>(null);
   const [customerCohorts, setCustomerCohorts] = useState<CustomerCohortRetention | null>(null);
   const [cohortError, setCohortError] = useState<string | null>(null);
+  const [retentionInsights, setRetentionInsights] = useState<CustomerRetentionInsights | null>(null);
+  const [retentionInsightsError, setRetentionInsightsError] = useState<string | null>(null);
   const [revenueForecast, setRevenueForecast] = useState<RevenueForecast | null>(null);
   const [forecastError, setForecastError] = useState<string | null>(null);
   const [kpiError, setKpiError] = useState<string | null>(null);
@@ -350,6 +354,29 @@ export default function Home() {
             error instanceof Error
               ? error.message
               : "Unable to load customer cohort retention.",
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getCustomerRetentionInsights()
+      .then((data) => {
+        if (!cancelled) setRetentionInsights(data);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setRetentionInsightsError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load retention insights.",
           );
         }
       });
@@ -888,16 +915,27 @@ export default function Home() {
           <div className="bottom-grid">
             <article className="panel insight-panel">
               <div className="panel-header"><div className="insight-title"><span className="insight-spark"><Sparkles size={17} /></span><div><h3>Business signal</h3><p>Evidence from your historical data</p></div></div><span className="insight-label">OPPORTUNITY</span></div>
-              <h4>Customer retention deserves attention.</h4>
+              <h4>
+                {retentionInsights?.comparable_retention?.status === "no_observed_repeat_activity"
+                  ? "No repeat orders in the observed month."
+                  : "Customer retention deserves attention."}
+              </h4>
               <p className="insight-body">
-                {kpis && customerSegments.length
-                  ? `${kpis.repeat_customers.toLocaleString("en-US")} of ${kpis.unique_customers.toLocaleString("en-US")} unique customers have at least two recorded orders. The segment totals classify 18 repeat customers with no delivered orders under "No delivered order". Repeat purchasing does not by itself establish why customers return or leave.`
-                  : "Loading customer metrics…"}
+                {retentionInsightsError
+                  ? retentionInsightsError
+                  : !retentionInsights
+                    ? "Loading customer retention insights…"
+                    : retentionInsights.comparable_retention
+                      ? `${retentionInsights.comparable_retention.interpretation} At month ${retentionInsights.comparable_retention.month_number}, the average retention rate was ${retentionInsights.comparable_retention.average_retention_pct.toFixed(2)}% across ${retentionInsights.comparable_retention.cohort_count} eligible cohorts. Cohorts with fewer than ${retentionInsights.minimum_cohort_size} customers are excluded from this comparison.`
+                      : "There are not enough sufficiently large cohorts observed at the same age to make a reliable comparison."}
               </p>
               <div className="insight-metrics">
                 <div><span>Repeat customers</span><strong>{kpis ? kpis.repeat_customers.toLocaleString("en-US") : "—"}</strong></div>
                 <div><span>Recorded repeat rate</span><strong>{kpis ? `${kpis.repeat_customer_rate.toFixed(2)}%` : "—"}</strong></div>
-                <div><span>Next investigation</span><strong>Purchase cohorts</strong></div>
+                <div>
+                  <span>Small cohorts excluded</span>
+                  <strong>{retentionInsights ? retentionInsights.small_cohort_count : "—"}</strong>
+                </div>
               </div>
               <button className="insight-action" onClick={() => setActivePage("Customer intelligence")}>Explore customer intelligence <span>→</span></button>
             </article>
