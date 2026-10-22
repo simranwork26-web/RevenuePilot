@@ -176,6 +176,32 @@ export type RevenueBridge = {
   average_order_value_impact: number;
 };
 
+export type RevenueDriver = {
+  category?: string;
+  customer_state?: string;
+  previous_revenue: number;
+  current_revenue: number;
+  revenue_change: number;
+};
+
+export type RevenueDriverDrilldown = {
+  previous_month: string;
+  current_month: string;
+  previous_revenue: number;
+  current_revenue: number;
+  revenue_change: number;
+  category_drivers: RevenueDriver[];
+  regional_drivers: RevenueDriver[];
+};
+
+export const getRevenueDriverDrilldown = (
+  previousMonth: string,
+  currentMonth: string,
+) =>
+  fetchApi<RevenueDriverDrilldown>(
+    `/api/revenue/drivers?previous_month=${encodeURIComponent(previousMonth)}&current_month=${encodeURIComponent(currentMonth)}`,
+  );
+
 export const getRevenueBridge = (
   previousMonth: string,
   currentMonth: string,

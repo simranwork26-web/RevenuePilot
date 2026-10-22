@@ -9,6 +9,7 @@ from backend.retention_insights import build_retention_insights
 from datetime import date
 from fastapi import Query
 from backend.revenue_bridge import build_revenue_bridge
+from src.revenue_driver_drilldown import load_revenue_driver_drilldown
 
 from src.evaluate_revenue_forecast import load_weekly_revenue
 from src.revenue_forecasting import (
@@ -123,6 +124,23 @@ def get_revenue_bridge(
         by_month[previous_key],
         by_month[current_key],
     )
+
+
+@router.get("/revenue/drivers")
+def get_revenue_driver_drilldown(
+    previous_month: str = Query(...),
+    current_month: str = Query(...),
+) -> dict:
+    """Break down delivered revenue changes by category and customer state."""
+    try:
+        return load_revenue_driver_drilldown(previous_month, current_month)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = 404 if "months are unavailable" in message.lower() else 400
+        raise HTTPException(
+            status_code=status_code,
+            detail=message,
+        ) from exc
 
 
 @router.get("/categories")

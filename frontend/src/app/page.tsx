@@ -32,10 +32,12 @@ import {
   getCustomerRetentionInsights,
   getRevenueForecast,
   getRevenueBridge,
+  getRevenueDriverDrilldown,
   type CustomerCohortRetention,
   type CustomerRetentionInsights,
   type RevenueForecast,
   type RevenueBridge,
+  type RevenueDriverDrilldown,
   type CustomerRetention,
   type DashboardKpis,
   type MonthlyRevenue,
@@ -258,6 +260,9 @@ export default function Home() {
   const [revenueBridge, setRevenueBridge] = useState<RevenueBridge | null>(null);
   const [bridgeError, setBridgeError] = useState<string | null>(null);
   const [bridgeLoading, setBridgeLoading] = useState(true);
+  const [revenueDrivers, setRevenueDrivers] = useState<RevenueDriverDrilldown | null>(null);
+  const [revenueDriversError, setRevenueDriversError] = useState<string | null>(null);
+  const [revenueDriversLoading, setRevenueDriversLoading] = useState(true);
   const [kpiError, setKpiError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -449,6 +454,33 @@ export default function Home() {
     if (!effectivePreviousMonth || !effectiveCurrentMonth) return;
 
     let cancelled = false;
+
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        setRevenueDriversLoading(true);
+        setRevenueDriversError(null);
+      }
+    });
+
+    getRevenueDriverDrilldown(effectivePreviousMonth, effectiveCurrentMonth)
+      .then((data) => {
+        if (!cancelled) {
+          setRevenueDrivers(data);
+          setRevenueDriversError(null);
+          setRevenueDriversLoading(false);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setRevenueDrivers(null);
+          setRevenueDriversError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load revenue drivers.",
+          );
+          setRevenueDriversLoading(false);
+        }
+      });
 
     getRevenueBridge(effectivePreviousMonth, effectiveCurrentMonth)
       .then((data) => {
@@ -909,6 +941,85 @@ export default function Home() {
                         : "Average order value had no net impact on revenue."}
                   </span>
                   <small>Decomposition explains the change mathematically; it does not establish the underlying cause of pricing or order-mix changes.</small>
+                </div>
+              </>
+            )}
+          </section>
+
+          <section className="panel revenue-drivers-panel">
+            <div className="panel-header">
+              <div>
+                <h3>Revenue driver drilldown</h3>
+                <p>Identify the categories and customer states behind the monthly revenue change.</p>
+              </div>
+              <span className="forecast-badge">SEGMENT IMPACT</span>
+            </div>
+
+            {revenueDriversError ? (
+              <p role="alert" className="bridge-message">
+                Could not load revenue drivers: {revenueDriversError}
+              </p>
+            ) : revenueDriversLoading || !revenueDrivers ? (
+              <div className="chart-loading">Loading revenue contributions…</div>
+            ) : (
+              <>
+                <div className="driver-total-summary">
+                  <span>{revenueDrivers.previous_month} → {revenueDrivers.current_month}</span>
+                  <strong className={revenueDrivers.revenue_change < 0 ? "bridge-negative" : "bridge-positive"}>
+                    {revenueDrivers.revenue_change > 0 ? "+" : ""}
+                    {formatMoney(revenueDrivers.revenue_change)}
+                  </strong>
+                  <small>Overall change in delivered item revenue. Segment changes reconcile to this total.</small>
+                </div>
+
+                <div className="revenue-driver-grid">
+                  <div className="driver-breakdown">
+                    <h4>Product categories</h4>
+                    <div className="driver-table-wrap">
+                      <table className="driver-table">
+                        <thead><tr><th>Category</th><th>Previous</th><th>Current</th><th>Change</th></tr></thead>
+                        <tbody>
+                          {[...revenueDrivers.category_drivers]
+                            .sort((a, b) => Math.abs(b.revenue_change) - Math.abs(a.revenue_change))
+                            .slice(0, 8)
+                            .map((row) => (
+                              <tr key={row.category}>
+                                <td>{row.category ?? "Unknown category"}</td>
+                                <td>{formatMoney(row.previous_revenue)}</td>
+                                <td>{formatMoney(row.current_revenue)}</td>
+                                <td className={row.revenue_change < 0 ? "bridge-negative" : "bridge-positive"}>
+                                  {row.revenue_change > 0 ? "+" : ""}{formatMoney(row.revenue_change)}
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div className="driver-breakdown">
+                    <h4>Customer states</h4>
+                    <div className="driver-table-wrap">
+                      <table className="driver-table">
+                        <thead><tr><th>State</th><th>Previous</th><th>Current</th><th>Change</th></tr></thead>
+                        <tbody>
+                          {[...revenueDrivers.regional_drivers]
+                            .sort((a, b) => Math.abs(b.revenue_change) - Math.abs(a.revenue_change))
+                            .slice(0, 8)
+                            .map((row) => (
+                              <tr key={row.customer_state}>
+                                <td>{row.customer_state ?? "Unknown state"}</td>
+                                <td>{formatMoney(row.previous_revenue)}</td>
+                                <td>{formatMoney(row.current_revenue)}</td>
+                                <td className={row.revenue_change < 0 ? "bridge-negative" : "bridge-positive"}>
+                                  {row.revenue_change > 0 ? "+" : ""}{formatMoney(row.revenue_change)}
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
                 </div>
               </>
             )}
