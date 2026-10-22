@@ -1,6 +1,10 @@
 from fastapi import APIRouter, HTTPException
 
 from backend.database import get_connection
+from backend.customer_cohorts import (
+    COHORT_QUERY,
+    build_cohort_retention,
+)
 
 from src.evaluate_revenue_forecast import load_weekly_revenue
 from src.revenue_forecasting import (
@@ -134,6 +138,13 @@ def get_customer_segments() -> list[dict]:
         }
         for row in rows
     ]
+
+@router.get("/customers/cohorts")
+def get_customer_cohorts() -> dict:
+    """Return monthly delivered-order customer cohort retention."""
+    rows = fetch_all(COHORT_QUERY)
+    return build_cohort_retention(rows)
+
 
 @router.get("/customers/retention")
 def get_customer_retention() -> dict:

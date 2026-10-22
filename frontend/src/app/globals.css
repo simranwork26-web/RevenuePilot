@@ -354,3 +354,105 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   .page-content { padding: 0; }
   .panel, .kpi-card { break-inside: avoid; box-shadow: none; }
 }
+
+
+/* Customer cohort retention heatmap */
+.cohort-heatmap-panel { margin: 0 0 16px; }
+.cohort-summary {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin: 18px 0 13px;
+  color: var(--text-secondary);
+  font-size: 10px;
+}
+.cohort-summary strong { color: var(--text); }
+.cohort-scroll {
+  max-width: 100%;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.cohort-scroll:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cohort-table {
+  width: max-content;
+  min-width: 100%;
+  border-collapse: separate;
+  border-spacing: 3px;
+  padding: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.cohort-table th, .cohort-table td {
+  min-width: 42px;
+  height: 34px;
+  padding: 4px;
+  text-align: center;
+  font-size: 9px;
+}
+.cohort-table thead th {
+  color: var(--text-muted);
+  font-weight: 700;
+}
+.cohort-table .cohort-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 108px;
+  background: var(--surface);
+}
+.cohort-table .cohort-label {
+  text-align: left;
+  border-radius: 4px;
+}
+.cohort-label strong {
+  display: block;
+  color: var(--text);
+  font-size: 10px;
+}
+.cohort-label small {
+  display: block;
+  margin-top: 3px;
+  color: var(--text-muted);
+  font-size: 8px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.cohort-cell {
+  border-radius: 4px;
+  font-weight: 650;
+  cursor: help;
+}
+.cohort-cell-empty {
+  background: var(--surface-muted);
+  border: 1px dashed var(--border);
+  cursor: default;
+}
+.cohort-legend {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 13px;
+  color: var(--text-muted);
+  font-size: 9px;
+}
+.cohort-legend-scale { display: flex; gap: 3px; }
+.cohort-legend-scale i {
+  width: 15px;
+  height: 11px;
+  border-radius: 3px;
+  background: rgb(37, 99, 235);
+}
+.cohort-footnote, .cohort-message {
+  margin: 12px 0 0;
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.65;
+}
+@media (max-width: 600px) {
+  .cohort-heatmap-panel { padding: 14px; }
+  .cohort-summary { flex-direction: column; }
+  .cohort-legend { justify-content: flex-start; }
+}

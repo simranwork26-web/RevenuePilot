@@ -28,7 +28,9 @@ import {
   getRegions,
   getCustomerSegments,
   getCustomerRetention,
+  getCustomerCohorts,
   getRevenueForecast,
+  type CustomerCohortRetention,
   type RevenueForecast,
   type CustomerRetention,
   type DashboardKpis,
@@ -241,6 +243,8 @@ export default function Home() {
   const [segmentError, setSegmentError] = useState<string | null>(null);
   const [customerRetention, setCustomerRetention] = useState<CustomerRetention | null>(null);
   const [retentionError, setRetentionError] = useState<string | null>(null);
+  const [customerCohorts, setCustomerCohorts] = useState<CustomerCohortRetention | null>(null);
+  const [cohortError, setCohortError] = useState<string | null>(null);
   const [revenueForecast, setRevenueForecast] = useState<RevenueForecast | null>(null);
   const [forecastError, setForecastError] = useState<string | null>(null);
   const [kpiError, setKpiError] = useState<string | null>(null);
@@ -324,6 +328,28 @@ export default function Home() {
             error instanceof Error
               ? error.message
               : "Unable to load customer retention.",
+          );
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    getCustomerCohorts()
+      .then((data) => {
+        if (!cancelled) setCustomerCohorts(data);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setCohortError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load customer cohort retention.",
           );
         }
       });
@@ -741,6 +767,121 @@ export default function Home() {
                   );
                 })}
               </div>
+            )}
+          </section>
+
+          <section className="panel cohort-heatmap-panel">
+            <div className="panel-header">
+              <div>
+                <h3>Monthly cohort retention</h3>
+                <p>Percentage of each first-purchase cohort placing another delivered order in a given calendar month</p>
+              </div>
+              <Users size={18} className="muted-icon" />
+            </div>
+
+            {cohortError ? (
+              <p role="alert" className="cohort-message">{cohortError}</p>
+            ) : !customerCohorts ? (
+              <p className="cohort-message">Loading monthly cohort retention…</p>
+            ) : customerCohorts.cohorts.length === 0 ? (
+              <p className="cohort-message">No delivered-order cohorts are available.</p>
+            ) : (
+              <>
+                <div className="cohort-summary">
+                  <span><strong>{customerCohorts.cohort_count}</strong> monthly cohorts</span>
+                  <span>
+                    Data through{" "}
+                    <strong>
+                      {customerCohorts.historical_cutoff
+                        ? new Date(`${customerCohorts.historical_cutoff}T12:00:00`).toLocaleDateString("en-US", { month: "short", year: "numeric" })
+                        : "unavailable"}
+                    </strong>
+                  </span>
+                </div>
+
+                <div
+                  className="cohort-scroll"
+                  role="region"
+                  aria-label="Monthly cohort retention heatmap"
+                  tabIndex={0}
+                >
+                  <table className="cohort-table">
+                    <thead>
+                      <tr>
+                        <th scope="col" className="cohort-sticky">Cohort</th>
+                        {Array.from(
+                          { length: Math.max(1, ...customerCohorts.cohorts.map((cohort) => Object.keys(cohort.retention).length)) },
+                          (_, month) => (
+                            <th scope="col" key={month} title={`Month ${month} since first delivered order`}>
+                              M{month}
+                            </th>
+                          ),
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {customerCohorts.cohorts.map((cohort) => (
+                        <tr key={cohort.cohort_month}>
+                          <th
+                            scope="row"
+                            className="cohort-sticky cohort-label"
+                            title={`${cohort.cohort_month}: ${cohort.cohort_size.toLocaleString("en-US")} customers`}
+                          >
+                            <strong>
+                              {new Date(`${cohort.cohort_month}T12:00:00`).toLocaleDateString("en-US", { month: "short", year: "2-digit" })}
+                            </strong>
+                            <small>{cohort.cohort_size.toLocaleString("en-US")} customers</small>
+                          </th>
+                          {Array.from(
+                            { length: Math.max(1, ...customerCohorts.cohorts.map((item) => Object.keys(item.retention).length)) },
+                            (_, month) => {
+                              const value = cohort.retention[String(month)];
+                              const observed = value !== undefined;
+                              const opacity = observed
+                                ? 0.07 + 0.78 * Math.min(100, Math.max(0, value)) / 100
+                                : 0;
+
+                              return (
+                                <td
+                                  key={month}
+                                  className={`cohort-cell${observed ? "" : " cohort-cell-empty"}`}
+                                  style={observed ? {
+                                    backgroundColor: `rgba(37, 99, 235, ${opacity})`,
+                                    color: value >= 48 ? "#ffffff" : "var(--text)",
+                                  } : undefined}
+                                  title={observed
+                                    ? `${cohort.cohort_month}, month ${month}: ${value.toFixed(2)}% retained`
+                                    : `${cohort.cohort_month}, month ${month}: not yet observed`}
+                                  aria-label={observed
+                                    ? `Month ${month}: ${value.toFixed(2)} percent retained`
+                                    : `Month ${month}: not yet observed`}
+                                >
+                                  {observed ? `${value.toFixed(1)}%` : ""}
+                                </td>
+                              );
+                            },
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="cohort-legend">
+                  <span>Lower retention</span>
+                  <span className="cohort-legend-scale" aria-hidden="true">
+                    <i style={{ opacity: 0.08 }} />
+                    <i style={{ opacity: 0.25 }} />
+                    <i style={{ opacity: 0.45 }} />
+                    <i style={{ opacity: 0.7 }} />
+                    <i style={{ opacity: 0.95 }} />
+                  </span>
+                  <span>Higher retention</span>
+                </div>
+                <p className="cohort-footnote">
+                  Month 0 is the first delivered-order month and is always 100%. A 0% cell means the month was observed with no returning customers. Blank cells mean the month has not yet been observed. Retention measures repeat delivered orders in that exact calendar month, not whether a customer ever returned.
+                </p>
+              </>
             )}
           </section>
 

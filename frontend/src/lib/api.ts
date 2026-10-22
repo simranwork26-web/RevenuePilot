@@ -83,6 +83,22 @@ export type CustomerRetention = {
 export const getCustomerRetention = () =>
   fetchApi<CustomerRetention>("/api/customers/retention");
 
+export type CustomerCohort = {
+  cohort_month: string;
+  cohort_size: number;
+  retention: Record<string, number>;
+};
+
+export type CustomerCohortRetention = {
+  reference_date: string;
+  historical_cutoff: string | null;
+  cohort_count: number;
+  cohorts: CustomerCohort[];
+};
+
+export const getCustomerCohorts = () =>
+  fetchApi<CustomerCohortRetention>("/api/customers/cohorts");
+
 export type ForecastMetrics = {
   mae: number;
   rmse: number;
