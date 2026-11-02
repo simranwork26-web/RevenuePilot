@@ -10,6 +10,9 @@ from backend.retention_insights import build_retention_insights
 from datetime import date
 from fastapi import Query
 from backend.revenue_bridge import build_revenue_bridge
+from src.product_revenue_diagnosis import load_product_revenue_diagnosis
+from src.regional_customer_diagnosis import load_regional_customer_diagnosis
+
 from src.revenue_driver_drilldown import load_revenue_driver_drilldown
 
 from src.evaluate_revenue_forecast import load_weekly_revenue
@@ -156,6 +159,51 @@ def get_revenue_recommendations(
             current_month,
         )
         return build_business_recommendations(driver_data)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = (
+            404 if "months are unavailable" in message.lower() else 400
+        )
+        raise HTTPException(
+            status_code=status_code,
+            detail=message,
+        ) from exc
+
+
+@router.get("/revenue/products")
+def get_product_revenue_diagnosis(
+    previous_month: str = Query(...),
+    current_month: str = Query(...),
+) -> dict:
+    """Identify products driving delivered revenue changes."""
+    try:
+        return load_product_revenue_diagnosis(
+            previous_month,
+            current_month,
+        )
+    except ValueError as exc:
+        message = str(exc)
+        status_code = (
+            404 if "months are unavailable" in message.lower() else 400
+        )
+        raise HTTPException(
+            status_code=status_code,
+            detail=message,
+        ) from exc
+
+
+
+@router.get("/revenue/customer-diagnosis")
+def get_regional_customer_diagnosis(
+    previous_month: str = Query(...),
+    current_month: str = Query(...),
+) -> dict:
+    """Explain regional and customer contributions to revenue changes."""
+    try:
+        return load_regional_customer_diagnosis(
+            previous_month,
+            current_month,
+        )
     except ValueError as exc:
         message = str(exc)
         status_code = (

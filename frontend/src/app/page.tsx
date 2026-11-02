@@ -34,12 +34,16 @@ import {
   getRevenueBridge,
   getRevenueDriverDrilldown,
   getBusinessRecommendations,
+  getProductRevenueDiagnosis,
+  getRegionalCustomerDiagnosis,
+  type RegionalCustomerDiagnosis,
   type CustomerCohortRetention,
   type CustomerRetentionInsights,
   type RevenueForecast,
   type RevenueBridge,
   type RevenueDriverDrilldown,
   type BusinessRecommendations,
+  type ProductRevenueDiagnosis,
   type CustomerRetention,
   type DashboardKpis,
   type MonthlyRevenue,
@@ -268,6 +272,12 @@ export default function Home() {
   const [businessRecommendations, setBusinessRecommendations] = useState<BusinessRecommendations | null>(null);
   const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+  const [productDiagnosis, setProductDiagnosis] = useState<ProductRevenueDiagnosis | null>(null);
+  const [productDiagnosisError, setProductDiagnosisError] = useState<string | null>(null);
+  const [productDiagnosisLoading, setProductDiagnosisLoading] = useState(true);
+  const [regionalCustomerDiagnosis, setRegionalCustomerDiagnosis] = useState<RegionalCustomerDiagnosis | null>(null);
+  const [regionalCustomerDiagnosisError, setRegionalCustomerDiagnosisError] = useState<string | null>(null);
+  const [regionalCustomerDiagnosisLoading, setRegionalCustomerDiagnosisLoading] = useState(true);
   const [kpiError, setKpiError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -504,6 +514,60 @@ export default function Home() {
               : "Unable to load revenue bridge.",
           );
           setBridgeLoading(false);
+        }
+      });
+
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        setProductDiagnosisLoading(true);
+        setProductDiagnosisError(null);
+      }
+    });
+
+    getProductRevenueDiagnosis(effectivePreviousMonth, effectiveCurrentMonth)
+      .then((data) => {
+        if (!cancelled) {
+          setProductDiagnosis(data);
+          setProductDiagnosisError(null);
+          setProductDiagnosisLoading(false);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setProductDiagnosis(null);
+          setProductDiagnosisError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load product revenue diagnosis.",
+          );
+          setProductDiagnosisLoading(false);
+        }
+      });
+
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        setRegionalCustomerDiagnosisLoading(true);
+        setRegionalCustomerDiagnosisError(null);
+      }
+    });
+
+    getRegionalCustomerDiagnosis(effectivePreviousMonth, effectiveCurrentMonth)
+      .then((data) => {
+        if (!cancelled) {
+          setRegionalCustomerDiagnosis(data);
+          setRegionalCustomerDiagnosisError(null);
+          setRegionalCustomerDiagnosisLoading(false);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setRegionalCustomerDiagnosis(null);
+          setRegionalCustomerDiagnosisError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load regional and customer diagnosis.",
+          );
+          setRegionalCustomerDiagnosisLoading(false);
         }
       });
 
@@ -1143,6 +1207,301 @@ export default function Home() {
                       <li key={limitation}>{limitation}</li>
                     ))}
                   </ul>
+                </div>
+              </>
+            )}
+          </section>
+
+          <section className="panel product-diagnosis-panel">
+            <div className="panel-header">
+              <div>
+                <h3>Product-level revenue diagnosis</h3>
+                <p>
+                  Products contributing most to delivered item revenue changes
+                  in the selected comparison.
+                </p>
+              </div>
+              <Package size={18} className="muted-icon" />
+            </div>
+
+            {productDiagnosisError ? (
+              <p role="alert" className="bridge-message">
+                Could not load product diagnosis: {productDiagnosisError}
+              </p>
+            ) : productDiagnosisLoading || !productDiagnosis ? (
+              <div className="chart-loading">Analyzing product revenue drivers…</div>
+            ) : (
+              <>
+                <div className="driver-total-summary">
+                  <span>
+                    {productDiagnosis.previous_month} → {productDiagnosis.current_month}
+                  </span>
+                  <strong
+                    className={
+                      productDiagnosis.revenue_change < 0
+                        ? "bridge-negative"
+                        : "bridge-positive"
+                    }
+                  >
+                    {productDiagnosis.revenue_change > 0 ? "+" : ""}
+                    {formatMoney(productDiagnosis.revenue_change)}
+                  </strong>
+                  <small>
+                    {productDiagnosis.product_count.toLocaleString("en-US")} products
+                    analyzed. Product-level changes reconcile to the overall revenue change.
+                  </small>
+                </div>
+
+                <div className="driver-breakdown">
+                  <h4>Top 10 declining products</h4>
+                  <div className="driver-table-wrap">
+                    <table className="driver-table">
+                      <thead>
+                        <tr>
+                          <th>Product ID</th>
+                          <th>Category</th>
+                          <th>Previous revenue</th>
+                          <th>Current revenue</th>
+                          <th>Revenue change</th>
+                          <th>Change %</th>
+                          <th>Orders</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...productDiagnosis.product_drivers]
+                          .filter((product) => product.revenue_change < 0)
+                          .sort((a, b) => a.revenue_change - b.revenue_change)
+                          .slice(0, 10)
+                          .map((product) => (
+                            <tr key={product.product_id}>
+                              <td title={product.product_id}>
+                                <code>{product.product_id.slice(0, 12)}…</code>
+                              </td>
+                              <td>{product.category ?? "Unknown category"}</td>
+                              <td>{formatMoney(product.previous_revenue)}</td>
+                              <td>{formatMoney(product.current_revenue)}</td>
+                              <td className="bridge-negative">
+                                {formatMoney(product.revenue_change)}
+                              </td>
+                              <td>
+                                {product.revenue_change_pct === null
+                                  ? "N/A"
+                                  : `${product.revenue_change_pct.toFixed(1)}%`}
+                              </td>
+                              <td>
+                                {product.previous_orders} → {product.current_orders}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="forecast-notice">
+                  <strong>Data interpretation</strong>
+                  <p>
+                    Product identifiers are shown because the source dataset does not
+                    provide dependable product names. Revenue uses delivered item prices
+                    and excludes freight. A decline identifies where to investigate,
+                    not the cause of the decline.
+                  </p>
+                </div>
+              </>
+            )}
+          </section>
+
+          <section className="panel regional-customer-diagnosis-panel">
+            <div className="panel-header">
+              <div>
+                <h3>Regional &amp; customer diagnosis</h3>
+                <p>
+                  Where revenue changed across states and how customer activity
+                  contributed to the comparison.
+                </p>
+              </div>
+              <MapPinned size={18} className="muted-icon" />
+            </div>
+
+            {regionalCustomerDiagnosisError ? (
+              <p role="alert" className="bridge-message">
+                Could not load regional and customer diagnosis: {regionalCustomerDiagnosisError}
+              </p>
+            ) : regionalCustomerDiagnosisLoading || !regionalCustomerDiagnosis ? (
+              <div className="chart-loading">Analyzing regional and customer contributions…</div>
+            ) : (
+              <>
+                <div className="driver-total-summary">
+                  <span>
+                    {regionalCustomerDiagnosis.previous_month} → {regionalCustomerDiagnosis.current_month}
+                  </span>
+                  <strong
+                    className={
+                      regionalCustomerDiagnosis.revenue_change < 0
+                        ? "bridge-negative"
+                        : "bridge-positive"
+                    }
+                  >
+                    {regionalCustomerDiagnosis.revenue_change > 0 ? "+" : ""}
+                    {formatMoney(regionalCustomerDiagnosis.revenue_change)}
+                  </strong>
+                  <small>
+                    Regional and customer-level changes independently reconcile
+                    to the overall delivered revenue change.
+                  </small>
+                </div>
+
+                <div className="driver-breakdown">
+                  <h4>Largest regional revenue declines</h4>
+                  <div className="driver-table-wrap">
+                    <table className="driver-table">
+                      <thead>
+                        <tr>
+                          <th>State</th>
+                          <th>Previous revenue</th>
+                          <th>Current revenue</th>
+                          <th>Revenue change</th>
+                          <th>Change %</th>
+                          <th>Orders</th>
+                          <th>Average order value</th>
+                          <th>Customers</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {regionalCustomerDiagnosis.regional_drivers
+                          .filter((region) => region.revenue_change < 0)
+                          .slice(0, 10)
+                          .map((region) => (
+                            <tr key={region.state}>
+                              <td>{region.state}</td>
+                              <td>{formatMoney(region.previous_revenue)}</td>
+                              <td>{formatMoney(region.current_revenue)}</td>
+                              <td className="bridge-negative">
+                                {formatMoney(region.revenue_change)}
+                              </td>
+                              <td>
+                                {region.revenue_change_pct === null
+                                  ? "N/A"
+                                  : `${region.revenue_change_pct.toFixed(1)}%`}
+                              </td>
+                              <td>
+                                {region.previous_delivered_orders} → {region.current_delivered_orders}
+                              </td>
+                              <td>
+                                {region.previous_average_order_value === null ||
+                                region.current_average_order_value === null
+                                  ? "N/A"
+                                  : `${formatMoney(region.previous_average_order_value)} → ${formatMoney(region.current_average_order_value)}`}
+                              </td>
+                              <td>{region.previous_customers} → {region.current_customers}</td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="driver-breakdown regional-gains">
+                  <h4>Largest regional revenue gains</h4>
+                  <div className="driver-table-wrap">
+                    <table className="driver-table">
+                      <thead>
+                        <tr>
+                          <th>State</th>
+                          <th>Previous revenue</th>
+                          <th>Current revenue</th>
+                          <th>Revenue change</th>
+                          <th>Change %</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[...regionalCustomerDiagnosis.regional_drivers]
+                          .filter((region) => region.revenue_change > 0)
+                          .sort((a, b) => b.revenue_change - a.revenue_change)
+                          .slice(0, 5)
+                          .map((region) => (
+                            <tr key={region.state}>
+                              <td>{region.state}</td>
+                              <td>{formatMoney(region.previous_revenue)}</td>
+                              <td>{formatMoney(region.current_revenue)}</td>
+                              <td className="bridge-positive">
+                                +{formatMoney(region.revenue_change)}
+                              </td>
+                              <td>
+                                {region.revenue_change_pct === null
+                                  ? "N/A"
+                                  : `+${region.revenue_change_pct.toFixed(1)}%`}
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                <div className="driver-breakdown customer-diagnosis-breakdown">
+                  <h4>Customer activity segments</h4>
+                  <div className="customer-diagnosis-grid">
+                    {regionalCustomerDiagnosis.customer_segments.map((segment) => (
+                      <article className="customer-diagnosis-card" key={segment.status}>
+                        <span className="customer-diagnosis-label">
+                          {segment.status}
+                        </span>
+                        <strong>{segment.customers.toLocaleString("en-US")}</strong>
+                        <small>Customers</small>
+                        <p>{segment.description}</p>
+                        <dl>
+                          <div>
+                            <dt>Previous revenue</dt>
+                            <dd>{formatMoney(segment.previous_revenue)}</dd>
+                          </div>
+                          <div>
+                            <dt>Current revenue</dt>
+                            <dd>{formatMoney(segment.current_revenue)}</dd>
+                          </div>
+                          <div>
+                            <dt>Revenue change</dt>
+                            <dd className={
+                              segment.revenue_change < 0
+                                ? "bridge-negative"
+                                : "bridge-positive"
+                            }>
+                              {segment.revenue_change > 0 ? "+" : ""}
+                              {formatMoney(segment.revenue_change)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Delivered orders</dt>
+                            <dd>
+                              {segment.previous_delivered_orders.toLocaleString("en-US")}
+                              {" → "}
+                              {segment.current_delivered_orders.toLocaleString("en-US")}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt>Average revenue per customer</dt>
+                            <dd>
+                              {segment.previous_average_revenue_per_customer === null ||
+                              segment.current_average_revenue_per_customer === null
+                                ? "N/A"
+                                : `${formatMoney(segment.previous_average_revenue_per_customer)} → ${formatMoney(segment.current_average_revenue_per_customer)}`}
+                            </dd>
+                          </div>
+                        </dl>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="forecast-notice">
+                  <strong>Interpretation and methodology</strong>
+                  <p>{regionalCustomerDiagnosis.methodology.revenue_basis}</p>
+                  <p>{regionalCustomerDiagnosis.methodology.activity_basis}</p>
+                  <p>{regionalCustomerDiagnosis.methodology.inactive_customer_warning}</p>
+                  <p>
+                    Customer identity is based on {regionalCustomerDiagnosis.methodology.customer_identity}
+                    {" "}and customer-level results are aggregated, not individually identifiable.
+                  </p>
                 </div>
               </>
             )}

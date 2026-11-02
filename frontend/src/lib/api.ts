@@ -203,6 +203,99 @@ export const getRevenueDriverDrilldown = (
   );
 
 
+export type ProductRevenueDriver = {
+  product_id: string;
+  category: string;
+  previous_revenue: number;
+  current_revenue: number;
+  revenue_change: number;
+  revenue_change_pct: number | null;
+  previous_orders: number;
+  current_orders: number;
+  previous_items: number;
+  current_items: number;
+  previous_avg_item_price: number;
+  current_avg_item_price: number;
+};
+
+export type ProductCategoryDriver = {
+  category: string;
+  revenue_change: number;
+  decline_contribution_pct: number | null;
+};
+
+export type ProductRevenueDiagnosis = {
+  previous_month: string;
+  current_month: string;
+  previous_revenue: number;
+  current_revenue: number;
+  revenue_change: number;
+  product_count: number;
+  product_drivers: ProductRevenueDriver[];
+  category_drivers: ProductCategoryDriver[];
+};
+
+export const getProductRevenueDiagnosis = (
+  previousMonth: string,
+  currentMonth: string,
+) =>
+  fetchApi<ProductRevenueDiagnosis>(
+    `/api/revenue/products?previous_month=${encodeURIComponent(previousMonth)}&current_month=${encodeURIComponent(currentMonth)}`,
+  );
+
+
+export type RegionalRevenueDriver = {
+  state: string;
+  previous_revenue: number;
+  current_revenue: number;
+  revenue_change: number;
+  revenue_change_pct: number | null;
+  previous_delivered_orders: number;
+  current_delivered_orders: number;
+  previous_average_order_value: number | null;
+  current_average_order_value: number | null;
+  previous_customers: number;
+  current_customers: number;
+};
+
+export type CustomerRevenueSegment = {
+  status: "new" | "retained" | "inactive";
+  description: string;
+  customers: number;
+  previous_revenue: number;
+  current_revenue: number;
+  revenue_change: number;
+  previous_delivered_orders: number;
+  current_delivered_orders: number;
+  previous_average_revenue_per_customer: number | null;
+  current_average_revenue_per_customer: number | null;
+};
+
+export type RegionalCustomerDiagnosis = {
+  previous_month: string;
+  current_month: string;
+  previous_revenue: number;
+  current_revenue: number;
+  revenue_change: number;
+  regional_drivers: RegionalRevenueDriver[];
+  customer_segments: CustomerRevenueSegment[];
+  methodology: {
+    revenue_basis: string;
+    customer_identity: string;
+    activity_basis: string;
+    inactive_customer_warning: string;
+  };
+};
+
+export const getRegionalCustomerDiagnosis = (
+  previousMonth: string,
+  currentMonth: string,
+) =>
+  fetchApi<RegionalCustomerDiagnosis>(
+    `/api/revenue/customer-diagnosis?previous_month=${encodeURIComponent(previousMonth)}&current_month=${encodeURIComponent(currentMonth)}`,
+  );
+
+
 export type BusinessRecommendation = {
   id: string;
   priority: "high" | "medium" | "low";
