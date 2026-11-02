@@ -202,6 +202,36 @@ export const getRevenueDriverDrilldown = (
     `/api/revenue/drivers?previous_month=${encodeURIComponent(previousMonth)}&current_month=${encodeURIComponent(currentMonth)}`,
   );
 
+
+export type BusinessRecommendation = {
+  id: string;
+  priority: "high" | "medium" | "low";
+  title: string;
+  segment?: string;
+  evidence: string;
+  revenue_change?: number;
+  suggested_action: string;
+  success_metric: string;
+  metric_unit: string;
+};
+
+export type BusinessRecommendations = {
+  previous_month: string;
+  current_month: string;
+  overall_revenue_change: number;
+  recommendation_count: number;
+  recommendations: BusinessRecommendation[];
+  limitations: string[];
+};
+
+export const getBusinessRecommendations = (
+  previousMonth: string,
+  currentMonth: string,
+) =>
+  fetchApi<BusinessRecommendations>(
+    `/api/revenue/recommendations?previous_month=${encodeURIComponent(previousMonth)}&current_month=${encodeURIComponent(currentMonth)}`,
+  );
+
 export const getRevenueBridge = (
   previousMonth: string,
   currentMonth: string,

@@ -33,11 +33,13 @@ import {
   getRevenueForecast,
   getRevenueBridge,
   getRevenueDriverDrilldown,
+  getBusinessRecommendations,
   type CustomerCohortRetention,
   type CustomerRetentionInsights,
   type RevenueForecast,
   type RevenueBridge,
   type RevenueDriverDrilldown,
+  type BusinessRecommendations,
   type CustomerRetention,
   type DashboardKpis,
   type MonthlyRevenue,
@@ -263,6 +265,9 @@ export default function Home() {
   const [revenueDrivers, setRevenueDrivers] = useState<RevenueDriverDrilldown | null>(null);
   const [revenueDriversError, setRevenueDriversError] = useState<string | null>(null);
   const [revenueDriversLoading, setRevenueDriversLoading] = useState(true);
+  const [businessRecommendations, setBusinessRecommendations] = useState<BusinessRecommendations | null>(null);
+  const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const [kpiError, setKpiError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -499,6 +504,26 @@ export default function Home() {
               : "Unable to load revenue bridge.",
           );
           setBridgeLoading(false);
+        }
+      });
+
+    getBusinessRecommendations(effectivePreviousMonth, effectiveCurrentMonth)
+      .then((data) => {
+        if (!cancelled) {
+          setBusinessRecommendations(data);
+          setRecommendationsError(null);
+          setRecommendationsLoading(false);
+        }
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) {
+          setBusinessRecommendations(null);
+          setRecommendationsError(
+            error instanceof Error
+              ? error.message
+              : "Unable to load business recommendations.",
+          );
+          setRecommendationsLoading(false);
         }
       });
 
@@ -1020,6 +1045,104 @@ export default function Home() {
                       </table>
                     </div>
                   </div>
+                </div>
+              </>
+            )}
+          </section>
+
+          <section className="panel business-recommendations-panel">
+            <div className="panel-header">
+              <div>
+                <h3>Actionable business recommendations</h3>
+                <p>
+                  Evidence-based actions linked to the revenue changes in the selected months.
+                </p>
+              </div>
+              <span className="forecast-badge">DECISION SUPPORT</span>
+            </div>
+
+            {recommendationsError ? (
+              <p role="alert" className="bridge-message">
+                Could not load business recommendations: {recommendationsError}
+              </p>
+            ) : recommendationsLoading || !businessRecommendations ? (
+              <div className="chart-loading">Generating business recommendations…</div>
+            ) : (
+              <>
+                <div className="driver-total-summary">
+                  <span>
+                    {businessRecommendations.previous_month} →{" "}
+                    {businessRecommendations.current_month}
+                  </span>
+                  <strong
+                    className={
+                      businessRecommendations.overall_revenue_change < 0
+                        ? "bridge-negative"
+                        : "bridge-positive"
+                    }
+                  >
+                    {businessRecommendations.overall_revenue_change > 0 ? "+" : ""}
+                    {formatMoney(businessRecommendations.overall_revenue_change)}
+                  </strong>
+                  <small>
+                    {businessRecommendations.recommendation_count} recommendations
+                    based on the selected revenue comparison.
+                  </small>
+                </div>
+
+                {businessRecommendations.recommendations.length === 0 ? (
+                  <p className="bridge-message">
+                    No revenue-decline recommendations were identified for these months.
+                    This does not necessarily mean every business segment is performing well.
+                  </p>
+                ) : (
+                  <div className="recommendation-list">
+                    {businessRecommendations.recommendations.map((recommendation) => (
+                      <article
+                        className="recommendation-card"
+                        key={recommendation.id}
+                      >
+                        <div className="recommendation-heading">
+                          <h4>{recommendation.title}</h4>
+                          <span
+                            className={`recommendation-priority priority-${recommendation.priority}`}
+                          >
+                            {recommendation.priority} priority
+                          </span>
+                        </div>
+
+                        {recommendation.segment ? (
+                          <p className="recommendation-segment">
+                            Segment: <strong>{recommendation.segment}</strong>
+                          </p>
+                        ) : null}
+
+                        <div className="recommendation-detail">
+                          <strong>Evidence</strong>
+                          <p>{recommendation.evidence}</p>
+                        </div>
+
+                        <div className="recommendation-detail">
+                          <strong>Suggested action</strong>
+                          <p>{recommendation.suggested_action}</p>
+                        </div>
+
+                        <div className="recommendation-metric">
+                          <strong>Success metric</strong>
+                          <span>{recommendation.success_metric}</span>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                )}
+
+                <div className="forecast-notice">
+                  <strong>Interpretation limitations</strong>
+                  <ul>
+                    {businessRecommendations.limitations.map((limitation) => (
+                      <li key={limitation}>{limitation}</li>
+                    ))}
+                  </ul>
                 </div>
               </>
             )}

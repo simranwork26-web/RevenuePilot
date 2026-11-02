@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from backend.business_recommendations import build_business_recommendations
 
 from backend.database import get_connection
 from backend.customer_cohorts import (
@@ -137,6 +138,29 @@ def get_revenue_driver_drilldown(
     except ValueError as exc:
         message = str(exc)
         status_code = 404 if "months are unavailable" in message.lower() else 400
+        raise HTTPException(
+            status_code=status_code,
+            detail=message,
+        ) from exc
+
+
+@router.get("/revenue/recommendations")
+def get_revenue_recommendations(
+    previous_month: str = Query(...),
+    current_month: str = Query(...),
+) -> dict:
+    """Return evidence-based business recommendations for revenue changes."""
+    try:
+        driver_data = load_revenue_driver_drilldown(
+            previous_month,
+            current_month,
+        )
+        return build_business_recommendations(driver_data)
+    except ValueError as exc:
+        message = str(exc)
+        status_code = (
+            404 if "months are unavailable" in message.lower() else 400
+        )
         raise HTTPException(
             status_code=status_code,
             detail=message,

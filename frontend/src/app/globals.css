@@ -569,6 +569,116 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); ou
   }
 }
 
+/* Business recommendations */
+.recommendation-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.recommendation-card {
+  min-width: 0;
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-subtle, var(--surface));
+}
+
+.recommendation-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.recommendation-heading h4 {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.recommendation-priority {
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-radius: 20px;
+  font-size: 9px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.priority-high {
+  color: #b42318;
+  background: #fef0ee;
+}
+
+.priority-medium {
+  color: #9a6700;
+  background: #fff6df;
+}
+
+.priority-low {
+  color: #18794e;
+  background: #eaf7ef;
+}
+
+.recommendation-segment {
+  margin: 9px 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.recommendation-detail {
+  margin-top: 13px;
+}
+
+.recommendation-detail strong,
+.recommendation-metric strong {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--text);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.recommendation-detail p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.65;
+}
+
+.recommendation-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 13px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.recommendation-metric span {
+  color: var(--text-secondary);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.forecast-notice ul {
+  margin: 4px 0 0;
+  padding-left: 17px;
+  color: var(--text-secondary);
+}
+
+.forecast-notice li {
+  margin-top: 3px;
+}
+
+@media (max-width: 760px) {
+  .recommendation-list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* Revenue driver drilldown */
 .driver-total-summary {
   display: flex;
